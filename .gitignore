@@ -1,0 +1,33 @@
+# Proprietary data — never commit
+data/
+alphaearth-emb/
+drone_and_weather_metadata.json
+*.tif
+*.JPG
+*.jpg
+
+# Model weights / checkpoints
+*.pth
+*.pt
+checkpoints*/
+thermalgen_cache/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# Large / temporary artifacts
+*.tar
+*.zip
+outputs/
+data_cache/
+
+# Private
+email_to_siwo.md
+
+# OS
+.DS_Store
+Thumbs.db
