@@ -1,6 +1,4 @@
 # RGB-to-Thermal Translation for Urban Heat Mapping
-**Progress report — Team "Game of Drones" (Santosh Pant, Adithya, Galgallo, Nima)**
-*University of Michigan "AI for Heat Resilience" Hackathon follow-up · May 2026*
 
 ## 1. Summary
 We are predicting a building- and street-level heat map (a thermal image) from an ordinary color
