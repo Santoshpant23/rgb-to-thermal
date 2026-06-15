@@ -67,7 +67,7 @@ Submit primarily to **WACV 2027 R2 (Aug 28, 2026), Algorithms track**. In parall
 - [ ] **GO criterion:** PSNR drops by ≥ 2 dB at σ = 0.3 on at least one dataset.
 - [ ] **NO-GO branch:** if drop < 1 dB, pivot to workshop-only path (CCAI), re-scope to focus on the palette inversion + clean cross-dataset benchmark contribution.
 - [ ] Write a one-page memo with the go/no-go decision and commit it.
-- **Result:** Started Week 2 harness: added a small pix2pix go/no-go trainer with synthetic RGB-only misalignment support; Kust4K smoke test passed on Knox with 16 train / 8 eval samples.
+- **Result:** Started Week 2 harness: added a small pix2pix go/no-go trainer with synthetic RGB-only misalignment support; Kust4K smoke test passed on Knox. Preliminary aligned vs sigma=0.3 runs finished on Kust4K and CART; neither shows a >=2 dB drop yet, so the full severity sweep is still required before the go/no-go memo.
 - **Blocker:** None yet.
 
 ### Week 3 — Learned registration module v0
