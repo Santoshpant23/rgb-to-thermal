@@ -54,7 +54,7 @@ Submit primarily to **WACV 2027 R2 (Aug 28, 2026), Algorithms track**. In parall
 - [x] Write `unified_dataset.py`: a single `Dataset` class that returns `(rgb_tensor, thermal_tensor, scalar_target, dataset_tag, alignment_quality_score)` for all 3 datasets.
 - [x] Re-run `eval_v2.py` on official 202: must reproduce **19.28 ± 0.05 dB PSNR**.
 - [x] Write `make_synthetic_misalignment.py`: takes an aligned RGB-thermal pair and applies controlled translation/scale/rotation perturbation, with a severity parameter `σ ∈ [0, 1]`.
-- [x] Commit everything locally. Push later when ready.
+- [x] Commit and push Week 1 scaffold/fixes to GitHub.
 - **Result:** Reproduced weighted TTA ensemble at 19.28 dB PSNR on Knox; downloaded/extracted Caltech CART and Kust4K; unified loader reads Ann Arbor + Caltech + usable Kust4K train split as 336 + 1822 + 1970 samples; all-split counts are Caltech 2282 and Kust4K 2818 after excluding author-flagged broken stems; synthetic misalignment smoke test passed.
 - **Blocker:** None.
 
@@ -67,8 +67,8 @@ Submit primarily to **WACV 2027 R2 (Aug 28, 2026), Algorithms track**. In parall
 - [ ] **GO criterion:** PSNR drops by ≥ 2 dB at σ = 0.3 on at least one dataset.
 - [ ] **NO-GO branch:** if drop < 1 dB, pivot to workshop-only path (CCAI), re-scope to focus on the palette inversion + clean cross-dataset benchmark contribution.
 - [ ] Write a one-page memo with the go/no-go decision and commit it.
-- **Result:**
-- **Blocker:**
+- **Result:** Started Week 2 harness: added a small pix2pix go/no-go trainer with synthetic RGB-only misalignment support; Kust4K smoke test passed on Knox with 16 train / 8 eval samples.
+- **Blocker:** None yet.
 
 ### Week 3 — Learned registration module v0
 **Goal:** end-to-end trainable system that aligns *and* translates.
