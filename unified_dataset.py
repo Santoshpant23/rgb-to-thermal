@@ -107,6 +107,13 @@ def _split_map_from_txts(root: Path) -> dict[str, str]:
     return out
 
 
+def _exclusion_set_from_txts(root: Path, names: Iterable[str]) -> set[str]:
+    out: set[str] = set()
+    for name in names:
+        out.update(_read_split_txt(root / name))
+    return out
+
+
 def _match_thermal(rgb_path: Path, thermal_by_name: dict[str, Path], thermal_by_stem: dict[str, Path]) -> Path | None:
     name = rgb_path.name
     stem = rgb_path.stem
@@ -161,11 +168,7 @@ def discover_caltech(root: Path, split: str = "all", manifest: Path | None = Non
 
 
 def discover_kust4k(root: Path, split: str = "all", manifest: Path | None = None) -> list[PairRecord]:
-    """Discover Kust4K-style aligned RGB/Thermal folders.
-
-    The public source/name still needs confirmation, so this intentionally accepts a generic
-    layout with rgb/color/visible and thermal/ir/lwir folders, or a CSV manifest.
-    """
+    """Discover Kust4K aligned RGB/TIR folders, honoring official splits when present."""
     if manifest:
         return _read_manifest(root, manifest, "kust4k", split)
     rgb_dir = _find_first_dir(root, ["rgb", "color", "visible", "vis", "images"])
@@ -176,10 +179,15 @@ def discover_kust4k(root: Path, split: str = "all", manifest: Path | None = None
     by_name = {p.name: p for p in thermal_files}
     by_stem = {p.stem: p for p in thermal_files}
     split_by_stem = _split_map_from_txts(root)
+    excluded = _exclusion_set_from_txts(root, ["broke_RGB.txt", "broke_TIR.txt"])
     records: list[PairRecord] = []
     for rgb_path in _iter_images(rgb_dir):
+        if rgb_path.stem in excluded:
+            continue
         thermal_path = _match_thermal(rgb_path, by_name, by_stem)
         if not thermal_path:
+            continue
+        if thermal_path.stem in excluded:
             continue
         row_split = split_by_stem.get(rgb_path.stem, _stable_split(str(rgb_path.relative_to(root))))
         if split == "all" or split == row_split:

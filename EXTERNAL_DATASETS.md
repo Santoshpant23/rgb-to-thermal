@@ -20,6 +20,9 @@ Week 1 source-of-truth notes for public RGB/Thermal data.
 - Knox path:
   `/home/spant/UMich/umich-hackathon/rgb2thermal_wacv/data_cache/external/caltech/`.
 - Extracted loader count: 2282 paired samples.
+- Note: 2282 is the full `labeled_rgbt_pairs.zip` supervised subset, not a
+  partial extraction. Larger CART image counts include unlabeled imagery outside
+  this paired labeled archive.
 - Dataset license on CaltechDATA: Creative Commons Attribution Non Commercial 4.0
   International.
 - Repository license file: Creative Commons Attribution-NonCommercial-ShareAlike 4.0
@@ -40,5 +43,6 @@ Week 1 source-of-truth notes for public RGB/Thermal data.
   - `TIR.zip`: `90562a17a4160600b2a12359d2c48391`
 - Knox path:
   `/home/spant/UMich/umich-hackathon/rgb2thermal_wacv/data_cache/external/kust4k/`.
-- Extracted loader count: 4024 paired RGB/TIR samples.
-- Official split counts from `unified_dataset.py`: train 2814, val 403, test 807.
+- Raw extracted count: 4024 paired RGB/TIR samples.
+- Usable loader count after excluding `broke_RGB.txt` and `broke_TIR.txt` stems:
+  2818 total; train 1970, val 283, test 565.
