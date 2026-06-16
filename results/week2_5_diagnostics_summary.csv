@@ -1,0 +1,25 @@
+diagnostic,dataset,model,seed,train_sigma,eval_sigma,translation_frac,rotation_deg,scale_frac,psnr,baseline_psnr,drop_db,notes
+ann_arbor_original_train,ann_arbor,pix2pix,42,0.0,0.0,0.08,8,0.15,14.073089,,,aligned baseline
+ann_arbor_original_train,ann_arbor,pix2pix,42,0.3,0.0,0.08,8,0.15,12.093364,14.073089,1.979725,training-time misalignment
+ann_arbor_original_train,ann_arbor,pix2pix,42,0.5,0.0,0.08,8,0.15,10.257106,14.073089,3.815984,training-time misalignment
+eval_time,ann_arbor,pix2pix,42,0.0,0.3,0.08,8,0.15,12.377491,14.073089,1.695598,aligned checkpoint evaluated with RGB warp
+eval_time,ann_arbor,pix2pix,42,0.0,0.5,0.08,8,0.15,11.643184,14.073089,2.429905,aligned checkpoint evaluated with RGB warp
+eval_time,kust4k,pix2pix,42,0.0,0.3,0.08,8,0.15,15.310044,16.353854,1.043810,aligned checkpoint evaluated with RGB warp
+eval_time,kust4k,pix2pix,42,0.0,0.5,0.08,8,0.15,14.708834,16.353854,1.645020,aligned checkpoint evaluated with RGB warp
+eval_time,caltech_cart,pix2pix,42,0.0,0.3,0.08,8,0.15,16.099947,16.675840,0.575894,aligned checkpoint evaluated with RGB warp
+eval_time,caltech_cart,pix2pix,42,0.0,0.5,0.08,8,0.15,15.698939,16.675840,0.976901,aligned checkpoint evaluated with RGB warp
+shuffle_rgb,ann_arbor,pix2pix,42,0.0,0.0,0.08,8,0.15,7.186453,14.073089,6.886636,train/eval with shuffled RGB-target pairing
+shuffle_rgb,kust4k,pix2pix,42,0.0,0.0,0.08,8,0.15,12.766619,16.353854,3.587235,train/eval with shuffled RGB-target pairing
+shuffle_rgb,caltech_cart,pix2pix,42,0.0,0.0,0.08,8,0.15,11.846059,16.455773,4.609715,train/eval with shuffled RGB-target pairing
+amplified_train,ann_arbor,pix2pix,42,0.3,0.0,0.20,20,0.25,9.603109,14.258718,4.655608,training-time amplified misalignment
+amplified_train,kust4k,pix2pix,42,0.3,0.0,0.20,20,0.25,14.856010,16.155508,1.299498,training-time amplified misalignment
+amplified_train,caltech_cart,pix2pix,42,0.3,0.0,0.20,20,0.25,15.601200,16.258346,0.657146,training-time amplified misalignment
+amplified_train_3seed_mean,ann_arbor,pix2pix,42/7/123,0.3,0.0,0.20,20,0.25,11.209947,13.816089,2.606142,mean final PSNR over 3 seeds; drop std 1.941 dB
+amplified_train_3seed_mean,kust4k,pix2pix,42/7/123,0.3,0.0,0.20,20,0.25,15.201162,16.284866,1.083704,mean final PSNR over 3 seeds; drop std 0.231 dB
+amplified_train_3seed_mean,caltech_cart,pix2pix,42/7/123,0.3,0.0,0.20,20,0.25,16.158086,16.681834,0.523747,mean final PSNR over 3 seeds; drop std 0.220 dB
+l1_default,ann_arbor,l1,42,0.3,0.0,0.08,8,0.15,12.599006,14.142903,1.543897,L1-only training-time misalignment
+l1_amplified,ann_arbor,l1,42,0.3,0.0,0.20,20,0.25,11.645683,14.142903,2.497220,L1-only amplified misalignment
+l1_default,kust4k,l1,42,0.3,0.0,0.08,8,0.15,16.425524,16.911355,0.485831,L1-only training-time misalignment
+l1_amplified,kust4k,l1,42,0.3,0.0,0.20,20,0.25,16.321442,16.911355,0.589913,L1-only amplified misalignment
+l1_default,caltech_cart,l1,42,0.3,0.0,0.08,8,0.15,17.045842,17.330759,0.284917,L1-only training-time misalignment
+l1_amplified,caltech_cart,l1,42,0.3,0.0,0.20,20,0.25,16.795546,17.330759,0.535213,L1-only amplified misalignment

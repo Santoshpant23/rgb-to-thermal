@@ -65,10 +65,22 @@ Submit primarily to **WACV 2027 R2 (Aug 28, 2026), Algorithms track**. In parall
 - [x] Plot: **PSNR vs misalignment severity** (one line per dataset).
 - [x] Also: do the same on CART.
 - [x] Evaluate **GO criterion:** PSNR drops by ≥ 2 dB at σ = 0.3 on at least one dataset.
-- [x] Trigger **NO-GO branch:** drop < 1 dB, so pivot to workshop-only path (CCAI), re-scope to focus on the palette inversion + clean cross-dataset benchmark contribution.
+- [x] Evaluate **NO-GO branch:** drop < 1 dB, so run Week 2.5 diagnostics before any full pivot.
 - [x] Write a one-page memo with the go/no-go decision and commit it.
-- **Result:** Full Week 2 sweep completed on Knox. At σ=0.3, final PSNR drops were only 0.347 dB on Kust4K and 0.185 dB on CART, so the WACV registration-bottleneck story is no-go under this protocol. See `WEEK2_GO_NO_GO_MEMO.md`, `results/week2_sweep_summary.csv`, and `figures/week2_psnr_vs_sigma.svg`.
-- **Blocker:** Need decision on whether to run two diagnostics before fully pivoting: validation-time RGB misalignment sensitivity and shuffled-RGB thermal-prior control.
+- **Result:** Full Week 2 sweep completed on Knox. At σ=0.3, final PSNR drops were only 0.347 dB on Kust4K and 0.185 dB on CART, so the WACV registration-bottleneck story is provisional no-go under this narrow protocol only. See `WEEK2_GO_NO_GO_MEMO.md`, `results/week2_sweep_summary.csv`, and `figures/week2_psnr_vs_sigma.svg`.
+- **Blocker:** The no-go signal is not trusted yet because the perturbation is small, the external targets are low-frequency, only one seed was run, and Ann Arbor was not tested. Complete Week 2.5 before pivoting.
+
+### Week 2.5 — Diagnostics before pivot
+**Goal:** decide whether Week 2 was a real no-go or a weak harness.
+- [x] Run Ann Arbor sweep with σ = {0, 0.1, 0.2, 0.3, 0.5}.
+- [x] Run validation-time misalignment: train σ=0, evaluate at σ = {0.1, 0.2, 0.3, 0.5}.
+- [x] Run shuffled-RGB control to estimate thermal-prior-only PSNR.
+- [x] Re-sweep with amplified perturbation range: max translation fraction 0.20, max rotation 20 deg, max scale fraction 0.25.
+- [x] Run L1-only regression baseline alongside pix2pix.
+- [x] Run 3 seeds for final decision cells and report mean ± std.
+- [x] Update go/no-go memo: WACV story alive if any diagnostic shows a clean ≥ 2 dB drop; otherwise pivot with confidence.
+- **Result:** Week 2.5 overturns the final no-go. Ann Arbor shows the expected alignment sensitivity: original σ=0.3 drop is 1.98 dB; amplified σ=0.3 three-seed mean drop is 2.61 dB; L1-only amplified drop is 2.50 dB. Kust4K/CART remain weaker, so they should be external generalization tests, not the sole go/no-go evidence. See `WEEK2_5_DIAGNOSTICS_RESULT.md` and `results/week2_5_diagnostics_summary.csv`.
+- **Blocker:** Audit/improve Kust4K and CART target normalization before final external claims; current diagnostics still use raw normalized thermal grayscale for those datasets.
 
 ### Week 3 — Learned registration module v0
 **Goal:** end-to-end trainable system that aligns *and* translates.
