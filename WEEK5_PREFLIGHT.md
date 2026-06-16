@@ -117,7 +117,10 @@ model code. Knox smoke test passed:
 - normalization: `target_normalization=robust`
 - result: one epoch completed and wrote metadata/metrics.
 
-The full Week 5 transfer matrix is not run yet.
+The full Week 5 transfer matrix is now complete; see
+`WEEK5_TRANSFER_RESULT.md` and `results/week5_transfer_matrix_summary.csv`.
+The matrix is weak overall: affine wins 2/4 cells, only Ann Arbor -> Kust4K
+clears `+0.3 dB`, and both external-to-external transfer cells are negative.
 
 ## Week 5 Follow-Up Runs
 
@@ -145,3 +148,15 @@ First-priority pretrain/fine-tune diagnostic:
 External pretraining gives a small seed-42 initialization gain after Ann Arbor
 fine-tuning, but it does not come close to the old `19.28 dB` local target and
 should not be framed as a successful WACV cross-dataset result yet.
+
+Final transfer matrix result:
+
+| Train -> Eval | No-reg PSNR | Affine PSNR | Delta |
+|---|---:|---:|---:|
+| Ann Arbor -> Kust4K | 9.902 | 10.306 | +0.404 |
+| Kust4K -> Ann Arbor | 10.168 | 10.250 | +0.082 |
+| Kust4K -> CART | 10.054 | 9.859 | -0.195 |
+| CART -> Kust4K | 9.672 | 9.264 | -0.408 |
+
+Week 5 is complete, but it does not support a robust cross-dataset
+registration claim.

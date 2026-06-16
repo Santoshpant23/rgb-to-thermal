@@ -115,7 +115,7 @@ Submit primarily to **WACV 2027 R2 (Aug 28, 2026), Algorithms track** only if We
   - [x] CART 3-seed no-registration vs supervised-affine confirmation.
   - [x] CART `lambda_warp_rgb` sensitivity sweep over `{0.1, 0.5, 1.0, 2.0}`.
   - [x] Target-normalization fix or explicit fallback locked before cross-dataset claims.
-- [ ] Run the four transfer combinations:
+- [x] Run the four transfer combinations:
   - Train Ann Arbor → test Kust4K
   - Train Kust4K → test Ann Arbor
   - Train Kust4K → test CART
@@ -130,7 +130,7 @@ Submit primarily to **WACV 2027 R2 (Aug 28, 2026), Algorithms track** only if We
   `{42, 7, 123}` with the locked `lambda_warp_rgb=0.5`.
 - [x] First priority experiment: pre-train on Kust4K+CART, fine-tune on Ann
   Arbor, then compare against the 19.28 dB local target.
-- [ ] Produce a transfer matrix table (rows = train, cols = test, cells = PSNR + SSIM).
+- [x] Produce a transfer matrix table (rows = train, cols = test, cells = PSNR + SSIM).
 - **Preflight result:** Kust4K fails the registration-help threshold over three
   seeds (`+0.096 +/- 0.067 dB`). CART passes over three seeds
   (`+0.782 +/- 0.368 dB`) but is loss-balance-sensitive: the CART seed-42 delta
@@ -138,16 +138,17 @@ Submit primarily to **WACV 2027 R2 (Aug 28, 2026), Algorithms track** only if We
   `lambda_warp_rgb=2.0`. Use `robust` target normalization for transfer
   diagnostics. Do not frame Week 5 as proof of a general unsupervised
   registration bottleneck.
-- **Result:** In progress. Ann Arbor robust diagonal at locked
-  `lambda_warp_rgb=0.5` is positive but weak:
-  `+0.230 +/- 0.207 dB` over three seeds. Kust4K+CART pretraining followed by
-  Ann Arbor fine-tuning gives seed-42 PSNR `15.845 dB`, a `+0.165 dB` gain over
-  matched from-scratch robust supervised affine (`15.681 dB`) but still far
-  below the old `19.28 dB` local target. Treat this as a modest initialization
-  signal, not a WACV-strength cross-dataset result yet.
-- **Blocker:** Cross-dataset transfer still needs the actual full matrix;
-  preflight and the transfer smoke test only cleared the conditions for running
-  it.
+- **Result:** Week 5 complete. The transfer matrix is weak: supervised affine
+  wins 2/4 cells, but only Ann Arbor -> Kust4K clears `+0.3 dB`
+  (`+0.404 dB`); Kust4K -> Ann Arbor is near-null (`+0.082 dB`), and
+  Kust4K -> CART (`-0.195 dB`) plus CART -> Kust4K (`-0.408 dB`) are negative.
+  Kust4K+CART pretraining followed by Ann Arbor fine-tuning gives seed-42 PSNR
+  `15.845 dB`, a `+0.165 dB` gain over matched from-scratch robust supervised
+  affine (`15.681 dB`) but still far below the old `19.28 dB` local target. See
+  `WEEK5_TRANSFER_RESULT.md` and `results/week5_transfer_matrix_summary.csv`.
+- **Blocker:** No execution blocker remains for Week 5. The strategic blocker
+  is that Week 5 does not support a robust cross-dataset registration claim;
+  Week 6 should proceed with narrowed framing and stronger baselines.
 
 ### Week 6 — Baselines
 **Goal:** all required baselines reproduced fairly.
