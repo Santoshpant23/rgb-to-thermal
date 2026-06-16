@@ -8,10 +8,13 @@ Date: 2026-06-15
 check:
 
 - synthetic RGB-only misalignment on Ann Arbor;
-- a small registration head that consumes misaligned RGB plus scalar thermal
-  target and predicts an affine warp plus uncertainty map;
+- a target-conditioned registration head that consumes misaligned RGB plus
+  scalar thermal target and predicts an affine warp plus uncertainty map
+  (`target_conditioned`; internal oracle/sanity only);
 - a shared RGB feature-pyramid variant that predicts affine + uncertainty from
   the same ConvNeXt encoder features used by the decoder;
+- a no-registration ConvNeXt+U-Net baseline using the same amplified
+  misalignment protocol;
 - warping before the existing ConvNeXt+U-Net translator from `train_a1.py`;
 - losses for uncertainty-weighted reconstruction, RGB/thermal edge alignment,
   affine identity regularization, and uncertainty smoothness.
@@ -26,6 +29,10 @@ Shared RGB feature run:
 
 `/home/spant/UMich/umich-hackathon/rgb2thermal_wacv/week3_runs/week3_reg_shared_rgb_ann_arbor_sigma03_amp_seed42`
 
+No-registration baseline:
+
+`/home/spant/UMich/umich-hackathon/rgb2thermal_wacv/week3_runs/week3_no_registration_ann_arbor_sigma03_amp_seed42`
+
 Settings:
 
 - `train_sigma=0.3`, `eval_sigma=0.3`
@@ -37,23 +44,36 @@ Final validation metrics:
 
 | Architecture | MAE | PSNR | SSIM | Corr | theta_l2 | uncertainty |
 |---|---:|---:|---:|---:|---:|---:|
-| target-conditioned v0 | 0.1043 | 15.452 | 0.544 | 0.787 | 0.0139 | 1.085 |
+| no registration | 0.1022 | 15.886 | 0.547 | 0.803 | 0.0000 | 0.000 |
+| target-conditioned oracle | 0.1043 | 15.452 | 0.544 | 0.787 | 0.0139 | 1.085 |
 | shared RGB feature v0 | 0.1028 | 15.814 | 0.549 | 0.805 | 0.0360 | 0.922 |
 
 ## Read
 
-This is a successful Week 3 result: both learned affine correction variants
-train stably on the Ann Arbor amplified misalignment task, and the shared RGB
-feature variant gives a deployable path that no longer requires thermal/target
-input at inference.
+This is a successful engineering result, but not yet a successful method result.
+Both learned affine correction variants train stably on the Ann Arbor amplified
+misalignment task, and the shared RGB feature variant gives a deployable path
+that no longer requires thermal/target input at inference.
 
-This is still v0, not the final paper architecture. Week 4 should decide whether
-affine is enough or whether TPS/dense flow is needed.
+The headline comparison is currently negative: shared RGB feature registration
+is `0.072 dB` below the no-registration baseline under the same seed, resolution,
+epochs, and amplified `sigma=0.3` protocol. Week 4 must therefore improve the
+registration mechanism before we can claim learned registration recovers
+misalignment damage.
+
+The target-conditioned variant should be treated as an internal oracle/sanity
+check, not as paper evidence for registration. Its `theta_l2=0.0139` means it
+mostly stays near identity; the PSNR is not evidence of meaningful learned
+warping.
+
+This is still v0. Week 4 should decide whether input-space affine, TPS, or dense
+flow is needed and compare against the no-registration baseline as the primary
+reference.
 
 ## Open Items
 
 - Audit/improve Kust4K and CART thermal target normalization before using them
   for final cross-dataset claims.
-- Compare against fixed-crop/no-registration baselines under the same amplified
-  validation protocol.
+- Improve over the no-registration baseline under the same amplified validation
+  protocol.
 - Add qualitative warp/uncertainty visualizations in Week 4 or Week 8.

@@ -1,0 +1,4 @@
+run,arch,dataset,train_sigma,eval_sigma,translation_frac,rotation_deg,scale_frac,epochs,res,train_count,val_count,best_val_mae,final_val_psnr,final_val_ssim,final_val_corr,final_theta_l2,final_uncertainty,delta_vs_no_registration,knox_path
+week3_no_registration_ann_arbor_sigma03_amp_seed42,no_registration,ann_arbor,0.3,0.3,0.20,20,0.25,30,256,336,41,0.102214,15.885792,0.546842,0.802746,0.000000,0.000000,0.000000,week3_runs/week3_no_registration_ann_arbor_sigma03_amp_seed42
+week3_reg_shared_rgb_ann_arbor_sigma03_amp_seed42,shared_rgb_feature_affine,ann_arbor,0.3,0.3,0.20,20,0.25,30,256,336,41,0.102832,15.813971,0.549339,0.804655,0.036047,0.921804,-0.071821,week3_runs/week3_reg_shared_rgb_ann_arbor_sigma03_amp_seed42
+week4_input_rgb_affine_ann_arbor_sigma03_amp_seed42,input_rgb_affine,ann_arbor,0.3,0.3,0.20,20,0.25,30,256,336,41,0.102086,15.771725,0.547865,0.803186,0.013047,0.623591,-0.114067,week4_runs/week4_input_rgb_affine_ann_arbor_sigma03_amp_seed42

@@ -89,17 +89,22 @@ Submit primarily to **WACV 2027 R2 (Aug 28, 2026), Algorithms track**. In parall
 - [x] Plug v0 into the existing ConvNeXt+U-Net translator.
 - [x] Share encoder features instead of using a separate registration head.
 - [x] First training pass on Ann Arbor only; sanity-check on val.
-- **Result:** Week 3 complete. `week3_registration_v0.py` now has both target-conditioned and shared-RGB-feature affine registration variants. On Ann Arbor amplified σ=0.3, target-conditioned v0 reached val MAE 0.1043 / PSNR 15.45 / SSIM 0.544; shared RGB feature v0 reached MAE 0.1028 / PSNR 15.81 / SSIM 0.549. See `WEEK3_REGISTRATION_V0_RESULT.md` and `results/week3_registration_v0_summary.csv`.
-- **Blocker:** Open before Week 5: audit/improve Kust4K and CART target normalization. Week 4 must also test whether affine is enough or needs TPS/dense flow.
+- **Result:** Week 3 complete as an engineering milestone. `week3_registration_v0.py` has target-conditioned oracle, shared-RGB-feature affine registration, and no-registration baseline modes. On Ann Arbor amplified σ=0.3, no-registration reached PSNR 15.89, shared RGB feature v0 reached 15.81, and target-conditioned oracle reached 15.45; therefore v0 trains stably but does not yet beat the baseline. See `WEEK3_REGISTRATION_V0_RESULT.md` and `results/week3_registration_v0_summary.csv`.
+- **Blocker:** Week 4 must improve over the no-registration baseline before we can claim learned registration recovers misalignment damage. Open before Week 5: improve Kust4K/CART target normalization.
 
 ### Week 4 — Registration module v1 + multi-dataset training
 **Goal:** the model trains and improves over the fixed-crop baseline on at least one dataset.
+- [x] Run same-protocol no-registration Ann Arbor baseline for the headline delta.
+- [x] Start Kust4K/CART target-normalization audit.
+- [ ] Implement a target-normalization fix or choose the conservative reporting fallback.
+- [ ] Decide whether the primary registration mechanism should be input-space warp, feature-space warp, TPS, or small dense flow.
+- [x] Test input-space affine as the interpretable paper-facing variant.
 - [ ] Upgrade affine to **thin-plate-spline (TPS)** or small dense flow, depending on tractability.
 - [ ] Train on Kust4K. Compare against our fixed-crop baseline.
 - [ ] Train on CART. Same comparison.
 - [ ] **Decision point:** if learned registration beats fixed-crop by ≥ 0.3 dB on at least two datasets → continue. Else: revisit architecture or downgrade scope.
-- **Result:**
-- **Blocker:**
+- **Result:** Started. The no-registration Ann Arbor amplified σ=0.3 baseline reached PSNR 15.89. Shared feature-space affine reached 15.81 and input-space RGB affine reached 15.77, so simple affine is not enough yet. Target audit confirms Kust4K/CART raw grayscale targets have much lower edge energy than Ann Arbor scalar targets.
+- **Blocker:** Need a v1 registration mechanism that beats no-registration and a defensible external target-normalization choice before Week 5.
 
 ### Week 5 — Cross-dataset generalization
 **Goal:** show the method transfers across datasets.

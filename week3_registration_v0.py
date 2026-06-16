@@ -248,6 +248,87 @@ class SharedFeatureRegistrationTranslator(nn.Module):
         }
 
 
+class NoRegistrationTranslator(nn.Module):
+    """ConvNeXt+U-Net baseline on misaligned RGB with no learned warp."""
+
+    def __init__(self, encoder: str):
+        super().__init__()
+        self.translator = UNetReg(encoder=encoder, in_ch=3, use_alpha=False)
+
+    def forward(self, rgb_raw: torch.Tensor, target_for_reg: torch.Tensor) -> dict[str, torch.Tensor]:
+        pred = self.translator(normalize_rgb(rgb_raw))
+        b = rgb_raw.shape[0]
+        theta = torch.tensor(
+            [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
+            dtype=rgb_raw.dtype,
+            device=rgb_raw.device,
+        ).view(1, 2, 3).expand(b, -1, -1)
+        uncertainty = torch.zeros(
+            b,
+            1,
+            target_for_reg.shape[-2],
+            target_for_reg.shape[-1],
+            dtype=rgb_raw.dtype,
+            device=rgb_raw.device,
+        )
+        return {
+            "pred": pred,
+            "theta": theta,
+            "uncertainty": uncertainty,
+            "warped_raw": rgb_raw,
+        }
+
+
+class RGBInputAffineRegistrationTranslator(nn.Module):
+    """Deployable RGB-only affine predictor that warps input pixels."""
+
+    def __init__(self, encoder: str, reg_base: int = 32):
+        super().__init__()
+        self.reg_enc = nn.Sequential(
+            nn.Conv2d(3, reg_base, 5, stride=2, padding=2),
+            nn.GroupNorm(8, reg_base),
+            nn.GELU(),
+            nn.Conv2d(reg_base, reg_base * 2, 3, stride=2, padding=1),
+            nn.GroupNorm(8, reg_base * 2),
+            nn.GELU(),
+            nn.Conv2d(reg_base * 2, reg_base * 4, 3, stride=2, padding=1),
+            nn.GroupNorm(8, reg_base * 4),
+            nn.GELU(),
+            nn.Conv2d(reg_base * 4, reg_base * 4, 3, padding=1),
+            nn.GroupNorm(8, reg_base * 4),
+            nn.GELU(),
+        )
+        self.theta = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            nn.Flatten(),
+            nn.Linear(reg_base * 4, reg_base * 4),
+            nn.GELU(),
+            nn.Linear(reg_base * 4, 6),
+        )
+        self.unc = nn.Sequential(
+            nn.Conv2d(reg_base * 4, reg_base * 2, 3, padding=1),
+            nn.GELU(),
+            nn.Conv2d(reg_base * 2, 1, 1),
+        )
+        nn.init.zeros_(self.theta[-1].weight)
+        with torch.no_grad():
+            self.theta[-1].bias.copy_(torch.tensor([1.0, 0.0, 0.0, 0.0, 1.0, 0.0]))
+        self.translator = UNetReg(encoder=encoder, in_ch=3, use_alpha=False)
+
+    def forward(self, rgb_raw: torch.Tensor, target_for_reg: torch.Tensor) -> dict[str, torch.Tensor]:
+        feat = self.reg_enc(rgb_raw)
+        theta = self.theta(feat).view(-1, 2, 3)
+        warped_raw = apply_affine(rgb_raw, theta)
+        pred = self.translator(normalize_rgb(warped_raw))
+        uncertainty = F.softplus(F.interpolate(self.unc(feat), size=target_for_reg.shape[-2:], mode="bilinear", align_corners=False))
+        return {
+            "pred": pred,
+            "theta": theta,
+            "uncertainty": uncertainty,
+            "warped_raw": warped_raw,
+        }
+
+
 def apply_affine(x: torch.Tensor, theta: torch.Tensor) -> torch.Tensor:
     grid = F.affine_grid(theta, x.shape, align_corners=False)
     return F.grid_sample(x, grid, mode="bilinear", padding_mode="border", align_corners=False)
@@ -348,7 +429,11 @@ def write_json(path: Path, payload: dict) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--name", default="week3_reg_v0_ann_arbor")
-    parser.add_argument("--arch", default="target_conditioned", choices=["target_conditioned", "shared_rgb"])
+    parser.add_argument(
+        "--arch",
+        default="target_conditioned",
+        choices=["target_conditioned", "shared_rgb", "no_registration", "input_rgb_affine"],
+    )
     parser.add_argument("--encoder", default="convnext_tiny")
     parser.add_argument("--res", type=int, default=256)
     parser.add_argument("--epochs", type=int, default=30)
@@ -398,6 +483,10 @@ def main() -> None:
 
     if args.arch == "shared_rgb":
         model = SharedFeatureRegistrationTranslator(args.encoder).to(device)
+    elif args.arch == "no_registration":
+        model = NoRegistrationTranslator(args.encoder).to(device)
+    elif args.arch == "input_rgb_affine":
+        model = RGBInputAffineRegistrationTranslator(args.encoder).to(device)
     else:
         model = RegistrationTranslator(args.encoder).to(device)
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
