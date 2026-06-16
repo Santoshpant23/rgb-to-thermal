@@ -90,6 +90,21 @@ normalization and conservative language:
   improves transfer stability, not whether the original WACV bottleneck claim
   is already proven.
 
+Week 5 transfer runs use `lambda_warp_rgb=0.5` for the supervised-affine
+variant. This is the locked compromise setting: it remains above the CART
+seed-42 threshold (`+0.948 dB`) while avoiding the more loss-dominant `1.0` and
+`2.0` settings. The Week 4 default `1.0` remains documented as an ablation, not
+the default transfer-matrix setting.
+
+The Kust4K row should be interpreted conservatively:
+
+- AA->Kust4K is still useful as a transfer/null check.
+- Kust4K->AA tests whether Kust4K is a useful source domain despite its
+  within-dataset null result.
+- Kust4K->CART and CART->Kust4K are lower-priority completeness checks.
+- The first priority experiment is Kust4K+CART pretraining followed by Ann
+  Arbor fine-tuning.
+
 ## Transfer Harness Start
 
 Added `--eval-dataset` to `week3_registration_v0.py` so training and validation
@@ -103,3 +118,30 @@ model code. Knox smoke test passed:
 - result: one epoch completed and wrote metadata/metrics.
 
 The full Week 5 transfer matrix is not run yet.
+
+## Week 5 Follow-Up Runs
+
+Ann Arbor robust diagonal control, locked `lambda_warp_rgb=0.5`:
+
+| Seed | No-reg PSNR | Supervised affine PSNR | Delta |
+|---:|---:|---:|---:|
+| 42 | 15.218 | 15.681 | +0.463 |
+| 7 | 15.656 | 15.721 | +0.065 |
+| 123 | 15.510 | 15.674 | +0.164 |
+| Mean +/- std | 15.461 | 15.692 | +0.230 +/- 0.207 |
+
+This is directionally positive but weaker than the Week 4 raw-target
+`lambda_warp_rgb=1.0` result. Under the locked Week 5 protocol, Ann Arbor no
+longer clears the old `0.3 dB` threshold.
+
+First-priority pretrain/fine-tune diagnostic:
+
+| Run | Train | Eval | PSNR | Note |
+|---|---|---|---:|---|
+| from scratch | Ann Arbor | Ann Arbor | 15.681 | robust, seed 42, lambda 0.5 |
+| external pretrain only | Kust4K+CART | Ann Arbor | 9.983 | poor direct transfer |
+| external pretrain -> AA fine-tune | Ann Arbor | Ann Arbor | 15.845 | +0.165 vs from scratch |
+
+External pretraining gives a small seed-42 initialization gain after Ann Arbor
+fine-tuning, but it does not come close to the old `19.28 dB` local target and
+should not be framed as a successful WACV cross-dataset result yet.

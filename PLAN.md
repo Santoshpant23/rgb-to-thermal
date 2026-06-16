@@ -122,8 +122,15 @@ Submit primarily to **WACV 2027 R2 (Aug 28, 2026), Algorithms track** only if We
   - Train CART → test Kust4K
 - [x] Add `--eval-dataset` transfer support to `week3_registration_v0.py` and
   smoke-test Kust4K→CART with `target_normalization=robust`.
+- [x] Lock transfer protocol: use `target_normalization=robust` and
+  `lambda_warp_rgb=0.5` for supervised-affine transfer runs. Rationale:
+  `0.5` stays above threshold on CART seed 42 (`+0.948 dB`) while avoiding the
+  strongest loss-dominance setting; `1.0` and `2.0` remain ablations.
+- [x] Re-run Ann Arbor diagonal control under robust normalization for seeds
+  `{42, 7, 123}` with the locked `lambda_warp_rgb=0.5`.
+- [x] First priority experiment: pre-train on Kust4K+CART, fine-tune on Ann
+  Arbor, then compare against the 19.28 dB local target.
 - [ ] Produce a transfer matrix table (rows = train, cols = test, cells = PSNR + SSIM).
-- [ ] Pre-train on Kust4K + CART, fine-tune on Ann Arbor — does it beat our 19.28?
 - **Preflight result:** Kust4K fails the registration-help threshold over three
   seeds (`+0.096 +/- 0.067 dB`). CART passes over three seeds
   (`+0.782 +/- 0.368 dB`) but is loss-balance-sensitive: the CART seed-42 delta
@@ -131,7 +138,13 @@ Submit primarily to **WACV 2027 R2 (Aug 28, 2026), Algorithms track** only if We
   `lambda_warp_rgb=2.0`. Use `robust` target normalization for transfer
   diagnostics. Do not frame Week 5 as proof of a general unsupervised
   registration bottleneck.
-- **Result:**
+- **Result:** In progress. Ann Arbor robust diagonal at locked
+  `lambda_warp_rgb=0.5` is positive but weak:
+  `+0.230 +/- 0.207 dB` over three seeds. Kust4K+CART pretraining followed by
+  Ann Arbor fine-tuning gives seed-42 PSNR `15.845 dB`, a `+0.165 dB` gain over
+  matched from-scratch robust supervised affine (`15.681 dB`) but still far
+  below the old `19.28 dB` local target. Treat this as a modest initialization
+  signal, not a WACV-strength cross-dataset result yet.
 - **Blocker:** Cross-dataset transfer still needs the actual full matrix;
   preflight and the transfer smoke test only cleared the conditions for running
   it.

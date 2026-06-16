@@ -9,26 +9,30 @@ import sys
 from pathlib import Path
 
 
-def read_run(root: Path, run: str, baseline_psnr: dict[tuple[str, int], float]) -> dict[str, float | int | str]:
+def read_run(root: Path, run: str, baseline_psnr: dict[tuple[str, str, int], float]) -> dict[str, float | int | str]:
     run_dir = root / run
     metadata = json.loads((run_dir / "metadata.json").read_text(encoding="utf-8"))
     metrics = json.loads((run_dir / "metrics.json").read_text(encoding="utf-8"))
     final = metrics["history"][-1]
     dataset = metadata.get("dataset", "ann_arbor")
+    eval_dataset = metadata.get("eval_dataset") or dataset
     seed = int(metadata["seed"])
     psnr = float(final["val_psnr"])
     arch = metadata["arch"]
-    baseline = baseline_psnr.get((dataset, seed))
+    baseline = baseline_psnr.get((dataset, eval_dataset, seed))
     return {
         "run": run,
         "arch": arch,
         "dataset": dataset,
+        "eval_dataset": eval_dataset,
         "seed": seed,
         "train_sigma": float(metadata["train_sigma"]),
         "eval_sigma": float(metadata["eval_sigma"]),
         "translation_frac": float(metadata["max_translation_frac"]),
         "rotation_deg": float(metadata["max_rotation_deg"]),
         "scale_frac": float(metadata["max_scale_frac"]),
+        "target_normalization": metadata.get("target_normalization", "raw"),
+        "lambda_warp_rgb": float(metadata.get("lambda_warp_rgb", 0.0)),
         "epochs": int(metadata["epochs"]),
         "res": int(metadata["res"]),
         "batch_size": int(metadata["bs"]),
@@ -64,12 +68,14 @@ def main() -> None:
         if run not in run_to_root:
             raise FileNotFoundError(run)
 
-    baseline_psnr: dict[tuple[str, int], float] = {}
+    baseline_psnr: dict[tuple[str, str, int], float] = {}
     for run, root in run_to_root.items():
         metadata = json.loads((root / run / "metadata.json").read_text(encoding="utf-8"))
         if metadata["arch"] == "no_registration":
+            dataset = metadata.get("dataset", "ann_arbor")
+            eval_dataset = metadata.get("eval_dataset") or dataset
             final = json.loads((root / run / "metrics.json").read_text(encoding="utf-8"))["history"][-1]
-            baseline_psnr[(metadata.get("dataset", "ann_arbor"), int(metadata["seed"]))] = float(final["val_psnr"])
+            baseline_psnr[(dataset, eval_dataset, int(metadata["seed"]))] = float(final["val_psnr"])
 
     rows = [read_run(run_to_root[run], run, baseline_psnr) for run in args.run]
     writer = csv.DictWriter(sys.stdout, fieldnames=list(rows[0].keys()))

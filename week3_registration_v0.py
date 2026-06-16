@@ -21,13 +21,18 @@ import timm
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader, Dataset, Subset
+from torch.utils.data import ConcatDataset, DataLoader, Dataset, Subset
 from torchvision.transforms import InterpolationMode
 import torchvision.transforms.functional as TF
 
 import r2t_common as C
 from train_a1 import ConvBlock, UNetReg
-from unified_dataset import UnifiedR2TDataset
+from unified_dataset import (
+    TARGET_NORMALIZATIONS,
+    UnifiedR2TDataset,
+    _load_target_norm_stats,
+    _normalize_target,
+)
 
 
 DEFAULT_TRANSLATION_FRAC = 0.20
@@ -96,7 +101,11 @@ class MisalignedAnnArbor(Dataset):
         max_translation_frac: float,
         max_rotation_deg: float,
         max_scale_frac: float,
+        target_norm: str,
+        target_norm_stats: str | None,
     ):
+        if target_norm not in TARGET_NORMALIZATIONS:
+            raise ValueError(f"target_norm must be one of {sorted(TARGET_NORMALIZATIONS)}")
         self.base = C.R2TDataset(names, augment=augment, use_depth=False)
         self.sigma = sigma
         self.augment = augment
@@ -104,6 +113,8 @@ class MisalignedAnnArbor(Dataset):
         self.max_translation_frac = max_translation_frac
         self.max_rotation_deg = max_rotation_deg
         self.max_scale_frac = max_scale_frac
+        self.target_norm = target_norm
+        self.target_norm_stats = _load_target_norm_stats(target_norm_stats)
 
     def __len__(self) -> int:
         return len(self.base)
@@ -121,6 +132,7 @@ class MisalignedAnnArbor(Dataset):
             max_rotation_deg=self.max_rotation_deg,
             max_scale_frac=self.max_scale_frac,
         )
+        row["target"] = _normalize_target(row["target"], "ann_arbor", self.target_norm, self.target_norm_stats)
         row["rgb_input_raw"] = misaligned
         row["rgb_input"] = normalize_rgb(misaligned.unsqueeze(0))[0]
         return row
@@ -176,6 +188,11 @@ def make_external_base_dataset(
     limit: int,
     dataset: str | None = None,
 ) -> Dataset:
+    def maybe_limit(ds: Dataset, n: int) -> Dataset:
+        if n and n > 0:
+            return Subset(ds, list(range(min(n, len(ds)))))
+        return ds
+
     dataset = dataset or args.dataset
     if dataset == "kust4k":
         ds = UnifiedR2TDataset.from_roots(
@@ -193,13 +210,38 @@ def make_external_base_dataset(
             target_norm=args.target_normalization,
             target_norm_stats=args.target_normalization_stats,
         )
+    elif dataset == "kust4k_cart":
+        k_ds = UnifiedR2TDataset.from_roots(
+            kust4k_root=args.kust4k_root,
+            split=split,
+            size_hw=(C.RES_H, C.RES_W),
+            target_norm=args.target_normalization,
+            target_norm_stats=args.target_normalization_stats,
+        )
+        c_ds = UnifiedR2TDataset.from_roots(
+            caltech_root=args.caltech_root,
+            split=split,
+            size_hw=(C.RES_H, C.RES_W),
+            target_norm=args.target_normalization,
+            target_norm_stats=args.target_normalization_stats,
+        )
+        if len(k_ds) == 0 or len(c_ds) == 0:
+            raise RuntimeError(f"No records found for dataset={dataset} split={split}")
+        if limit and limit > 0:
+            k_limit = max(1, limit // 2)
+            c_limit = max(1, limit - k_limit)
+            return ConcatDataset([maybe_limit(k_ds, k_limit), maybe_limit(c_ds, c_limit)])
+        ds = ConcatDataset(
+            [
+                k_ds,
+                c_ds,
+            ]
+        )
     else:
         raise ValueError(dataset)
     if len(ds) == 0:
         raise RuntimeError(f"No records found for dataset={dataset} split={split}")
-    if limit and limit > 0:
-        return Subset(ds, list(range(min(limit, len(ds)))))
-    return ds
+    return maybe_limit(ds, limit)
 
 
 def make_registration_dataset(
@@ -223,6 +265,8 @@ def make_registration_dataset(
             max_translation_frac=args.max_translation_frac,
             max_rotation_deg=args.max_rotation_deg,
             max_scale_frac=args.max_scale_frac,
+            target_norm=args.target_normalization,
+            target_norm_stats=args.target_normalization_stats,
         )
     base = make_external_base_dataset(args, split_name, limit, dataset=dataset)
     return MisalignedUnifiedDataset(
@@ -662,7 +706,7 @@ def write_json(path: Path, payload: dict) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--name", default="week3_reg_v0_ann_arbor")
-    parser.add_argument("--dataset", default="ann_arbor", choices=["ann_arbor", "kust4k", "caltech_cart"])
+    parser.add_argument("--dataset", default="ann_arbor", choices=["ann_arbor", "kust4k", "caltech_cart", "kust4k_cart"])
     parser.add_argument("--eval-dataset", default=None, choices=["ann_arbor", "kust4k", "caltech_cart"])
     parser.add_argument("--ann-arbor-cache", default=None, help="Kept for metadata compatibility; R2T_CACHE controls Ann Arbor loading.")
     parser.add_argument("--kust4k-root", default=None)
@@ -695,6 +739,7 @@ def main() -> None:
     parser.add_argument("--lambda-uncertainty", type=float, default=0.01)
     parser.add_argument("--lambda-uncertainty-tv", type=float, default=0.005)
     parser.add_argument("--max-flow", type=float, default=DEFAULT_MAX_FLOW)
+    parser.add_argument("--init-checkpoint", default=None)
     parser.add_argument("--max-train", type=int, default=0)
     parser.add_argument("--max-val", type=int, default=0)
     parser.add_argument("--out-dir", default=None)
@@ -734,6 +779,9 @@ def main() -> None:
         model = RGBDenseFlowRegistrationTranslator(args.encoder, max_flow=args.max_flow).to(device)
     else:
         model = RegistrationTranslator(args.encoder).to(device)
+    if args.init_checkpoint:
+        checkpoint = torch.load(args.init_checkpoint, map_location=device)
+        model.load_state_dict(checkpoint["model"])
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=args.epochs)
 
