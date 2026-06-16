@@ -32,6 +32,7 @@ from train_a1 import ConvBlock, UNetReg
 DEFAULT_TRANSLATION_FRAC = 0.20
 DEFAULT_ROTATION_DEG = 20.0
 DEFAULT_SCALE_FRAC = 0.25
+DEFAULT_MAX_FLOW = 0.15
 IMAGENET_MEAN = torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1)
 IMAGENET_STD = torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1)
 
@@ -329,8 +330,91 @@ class RGBInputAffineRegistrationTranslator(nn.Module):
         }
 
 
+class RGBDenseFlowRegistrationTranslator(nn.Module):
+    """Deployable RGB-only dense-flow predictor for small non-rigid correction."""
+
+    def __init__(self, encoder: str, max_flow: float = DEFAULT_MAX_FLOW, base: int = 32):
+        super().__init__()
+        self.max_flow = max_flow
+        self.e1 = nn.Sequential(
+            nn.Conv2d(3, base, 3, padding=1),
+            nn.GroupNorm(8, base),
+            nn.GELU(),
+            nn.Conv2d(base, base, 3, padding=1),
+            nn.GroupNorm(8, base),
+            nn.GELU(),
+        )
+        self.e2 = nn.Sequential(
+            nn.Conv2d(base, base * 2, 3, stride=2, padding=1),
+            nn.GroupNorm(8, base * 2),
+            nn.GELU(),
+            nn.Conv2d(base * 2, base * 2, 3, padding=1),
+            nn.GroupNorm(8, base * 2),
+            nn.GELU(),
+        )
+        self.e3 = nn.Sequential(
+            nn.Conv2d(base * 2, base * 4, 3, stride=2, padding=1),
+            nn.GroupNorm(8, base * 4),
+            nn.GELU(),
+            nn.Conv2d(base * 4, base * 4, 3, padding=1),
+            nn.GroupNorm(8, base * 4),
+            nn.GELU(),
+        )
+        self.d2 = nn.Sequential(
+            nn.Conv2d(base * 6, base * 2, 3, padding=1),
+            nn.GroupNorm(8, base * 2),
+            nn.GELU(),
+        )
+        self.d1 = nn.Sequential(
+            nn.Conv2d(base * 3, base, 3, padding=1),
+            nn.GroupNorm(8, base),
+            nn.GELU(),
+        )
+        self.flow_head = nn.Conv2d(base, 2, 3, padding=1)
+        self.unc_head = nn.Conv2d(base, 1, 3, padding=1)
+        nn.init.zeros_(self.flow_head.weight)
+        nn.init.zeros_(self.flow_head.bias)
+        self.translator = UNetReg(encoder=encoder, in_ch=3, use_alpha=False)
+
+    def forward(self, rgb_raw: torch.Tensor, target_for_reg: torch.Tensor) -> dict[str, torch.Tensor]:
+        e1 = self.e1(rgb_raw)
+        e2 = self.e2(e1)
+        e3 = self.e3(e2)
+        d2 = self.d2(torch.cat([F.interpolate(e3, size=e2.shape[-2:], mode="bilinear", align_corners=False), e2], dim=1))
+        d1 = self.d1(torch.cat([F.interpolate(d2, size=e1.shape[-2:], mode="bilinear", align_corners=False), e1], dim=1))
+        flow = torch.tanh(self.flow_head(d1)) * self.max_flow
+        warped_raw = apply_flow(rgb_raw, flow)
+        pred = self.translator(normalize_rgb(warped_raw))
+        uncertainty = F.softplus(F.interpolate(self.unc_head(d1), size=target_for_reg.shape[-2:], mode="bilinear", align_corners=False))
+        b = rgb_raw.shape[0]
+        theta = torch.tensor(
+            [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
+            dtype=rgb_raw.dtype,
+            device=rgb_raw.device,
+        ).view(1, 2, 3).expand(b, -1, -1)
+        return {
+            "pred": pred,
+            "theta": theta,
+            "uncertainty": uncertainty,
+            "warped_raw": warped_raw,
+            "flow": flow,
+        }
+
+
 def apply_affine(x: torch.Tensor, theta: torch.Tensor) -> torch.Tensor:
     grid = F.affine_grid(theta, x.shape, align_corners=False)
+    return F.grid_sample(x, grid, mode="bilinear", padding_mode="border", align_corners=False)
+
+
+def apply_flow(x: torch.Tensor, flow: torch.Tensor) -> torch.Tensor:
+    b, _c, h, w = x.shape
+    yy, xx = torch.meshgrid(
+        torch.linspace(-1.0, 1.0, h, dtype=x.dtype, device=x.device),
+        torch.linspace(-1.0, 1.0, w, dtype=x.dtype, device=x.device),
+        indexing="ij",
+    )
+    base = torch.stack([xx, yy], dim=-1).unsqueeze(0).expand(b, h, w, 2)
+    grid = base + flow.permute(0, 2, 3, 1)
     return F.grid_sample(x, grid, mode="bilinear", padding_mode="border", align_corners=False)
 
 
@@ -360,6 +444,15 @@ def affine_identity_loss(theta: torch.Tensor) -> torch.Tensor:
     return (theta - ident.view(1, 2, 3)).square().mean()
 
 
+def flow_regularization(flow: torch.Tensor | None) -> tuple[torch.Tensor, torch.Tensor]:
+    if flow is None:
+        zero = torch.tensor(0.0)
+        return zero, zero
+    mag = flow.square().mean()
+    smooth = tv_loss(flow)
+    return mag, smooth
+
+
 def loss_terms(out: dict[str, torch.Tensor], target: torch.Tensor, args: argparse.Namespace) -> dict[str, torch.Tensor]:
     pred = out["pred"]
     uncertainty = out["uncertainty"]
@@ -370,12 +463,17 @@ def loss_terms(out: dict[str, torch.Tensor], target: torch.Tensor, args: argpars
     target_edge = edge_magnitude(target)
     edge = F.l1_loss(normalize_per_sample(pred_edge), normalize_per_sample(target_edge))
     affine = affine_identity_loss(out["theta"])
+    flow_mag, flow_tv = flow_regularization(out.get("flow"))
+    flow_mag = flow_mag.to(pred.device)
+    flow_tv = flow_tv.to(pred.device)
     unc_tv = tv_loss(uncertainty)
     total = (
         l1
         + args.lambda_ssim * ssim_loss
         + args.lambda_edge * edge
         + args.lambda_affine * affine
+        + args.lambda_flow * flow_mag
+        + args.lambda_flow_tv * flow_tv
         + args.lambda_uncertainty * uncertainty.mean()
         + args.lambda_uncertainty_tv * unc_tv
     )
@@ -385,6 +483,8 @@ def loss_terms(out: dict[str, torch.Tensor], target: torch.Tensor, args: argpars
         "ssim": ssim_loss.detach(),
         "edge": edge.detach(),
         "affine": affine.detach(),
+        "flow_mag": flow_mag.detach(),
+        "flow_tv": flow_tv.detach(),
         "uncertainty": uncertainty.mean().detach(),
         "unc_tv": unc_tv.detach(),
     }
@@ -404,6 +504,8 @@ def evaluate(model: nn.Module, loader: DataLoader, device: torch.device, res: in
         tgt = target.cpu().numpy()
         theta = out["theta"].detach().cpu()
         uncertainty = out["uncertainty"].detach().cpu()
+        flow = out.get("flow")
+        flow_cpu = flow.detach().cpu() if flow is not None else None
         for i in range(len(pred)):
             m = C.metrics_np(pred[i, 0], tgt[i, 0])
             m["ssim"] = C.ssim_np(pred[i, 0], tgt[i, 0])
@@ -413,6 +515,8 @@ def evaluate(model: nn.Module, loader: DataLoader, device: torch.device, res: in
                 {
                     "theta_l2": float((theta[i] - ident).square().mean().sqrt()),
                     "uncertainty": float(uncertainty[i].mean()),
+                    "flow_l2": float(flow_cpu[i].square().mean().sqrt()) if flow_cpu is not None else 0.0,
+                    "flow_tv": float(tv_loss(flow_cpu[i : i + 1])) if flow_cpu is not None else 0.0,
                 }
             )
     keys = rows[0].keys()
@@ -432,7 +536,7 @@ def main() -> None:
     parser.add_argument(
         "--arch",
         default="target_conditioned",
-        choices=["target_conditioned", "shared_rgb", "no_registration", "input_rgb_affine"],
+        choices=["target_conditioned", "shared_rgb", "no_registration", "input_rgb_affine", "input_rgb_flow"],
     )
     parser.add_argument("--encoder", default="convnext_tiny")
     parser.add_argument("--res", type=int, default=256)
@@ -448,8 +552,11 @@ def main() -> None:
     parser.add_argument("--lambda-ssim", type=float, default=0.25)
     parser.add_argument("--lambda-edge", type=float, default=0.10)
     parser.add_argument("--lambda-affine", type=float, default=0.02)
+    parser.add_argument("--lambda-flow", type=float, default=0.02)
+    parser.add_argument("--lambda-flow-tv", type=float, default=0.01)
     parser.add_argument("--lambda-uncertainty", type=float, default=0.01)
     parser.add_argument("--lambda-uncertainty-tv", type=float, default=0.005)
+    parser.add_argument("--max-flow", type=float, default=DEFAULT_MAX_FLOW)
     parser.add_argument("--max-train", type=int, default=0)
     parser.add_argument("--max-val", type=int, default=0)
     parser.add_argument("--out-dir", default=None)
@@ -487,6 +594,8 @@ def main() -> None:
         model = NoRegistrationTranslator(args.encoder).to(device)
     elif args.arch == "input_rgb_affine":
         model = RGBInputAffineRegistrationTranslator(args.encoder).to(device)
+    elif args.arch == "input_rgb_flow":
+        model = RGBDenseFlowRegistrationTranslator(args.encoder, max_flow=args.max_flow).to(device)
     else:
         model = RegistrationTranslator(args.encoder).to(device)
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)

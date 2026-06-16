@@ -99,12 +99,13 @@ Submit primarily to **WACV 2027 R2 (Aug 28, 2026), Algorithms track**. In parall
 - [ ] Implement a target-normalization fix or choose the conservative reporting fallback.
 - [ ] Decide whether the primary registration mechanism should be input-space warp, feature-space warp, TPS, or small dense flow.
 - [x] Test input-space affine as the interpretable paper-facing variant.
-- [ ] Upgrade affine to **thin-plate-spline (TPS)** or small dense flow, depending on tractability.
+- [x] Test a small input-space dense-flow candidate.
+- [ ] Add known synthetic-warp supervision or an oracle inverse-warp diagnostic before more TPS/flow scaling.
 - [ ] Train on Kust4K. Compare against our fixed-crop baseline.
 - [ ] Train on CART. Same comparison.
 - [ ] **Decision point:** if learned registration beats fixed-crop by ≥ 0.3 dB on at least two datasets → continue. Else: revisit architecture or downgrade scope.
-- **Result:** Started. The no-registration Ann Arbor amplified σ=0.3 baseline reached PSNR 15.89. Shared feature-space affine reached 15.81 and input-space RGB affine reached 15.77, so simple affine is not enough yet. Target audit confirms Kust4K/CART raw grayscale targets have much lower edge energy than Ann Arbor scalar targets.
-- **Blocker:** Need a v1 registration mechanism that beats no-registration and a defensible external target-normalization choice before Week 5.
+- **Result:** Started. The no-registration Ann Arbor amplified σ=0.3 baseline reached PSNR 15.89. Shared feature-space affine reached 15.81, input-space RGB affine reached 15.77, default dense flow reached 15.55, and stronger-edge dense flow reached 15.38. Simple unsupervised affine/flow does not beat the baseline. Target audit confirms Kust4K/CART raw grayscale targets have much lower edge energy than Ann Arbor scalar targets.
+- **Blocker:** Need a v1 registration mechanism that beats no-registration. Next diagnostic should use the known synthetic perturbation to test/supervise inverse-warp recovery before more architecture scaling. Also need a defensible external target-normalization choice before Week 5.
 
 ### Week 5 — Cross-dataset generalization
 **Goal:** show the method transfers across datasets.
