@@ -100,12 +100,13 @@ Submit primarily to **WACV 2027 R2 (Aug 28, 2026), Algorithms track**. In parall
 - [ ] Decide whether the primary registration mechanism should be input-space warp, feature-space warp, TPS, or small dense flow.
 - [x] Test input-space affine as the interpretable paper-facing variant.
 - [x] Test a small input-space dense-flow candidate.
-- [ ] Add known synthetic-warp supervision or an oracle inverse-warp diagnostic before more TPS/flow scaling.
+- [x] Add known synthetic-warp supervision or an oracle inverse-warp diagnostic before more TPS/flow scaling.
+- [ ] Repeat supervised input-space affine with more seeds and decide whether to use it as pretraining/auxiliary loss.
 - [ ] Train on Kust4K. Compare against our fixed-crop baseline.
 - [ ] Train on CART. Same comparison.
 - [ ] **Decision point:** if learned registration beats fixed-crop by ≥ 0.3 dB on at least two datasets → continue. Else: revisit architecture or downgrade scope.
-- **Result:** Started. The no-registration Ann Arbor amplified σ=0.3 baseline reached PSNR 15.89. Shared feature-space affine reached 15.81, input-space RGB affine reached 15.77, default dense flow reached 15.55, and stronger-edge dense flow reached 15.38. Simple unsupervised affine/flow does not beat the baseline. Target audit confirms Kust4K/CART raw grayscale targets have much lower edge energy than Ann Arbor scalar targets.
-- **Blocker:** Need a v1 registration mechanism that beats no-registration. Next diagnostic should use the known synthetic perturbation to test/supervise inverse-warp recovery before more architecture scaling. Also need a defensible external target-normalization choice before Week 5.
+- **Result:** Started. The no-registration Ann Arbor amplified σ=0.3 baseline reached PSNR 15.89. Shared feature-space affine reached 15.81, input-space RGB affine reached 15.77, default dense flow reached 15.55, and stronger-edge dense flow reached 15.38. Simple unsupervised affine/flow does not beat the baseline. Adding synthetic RGB warp supervision to input-space affine reaches PSNR 16.20, a +0.31 dB gain over no-registration on the same protocol. Target audit confirms Kust4K/CART raw grayscale targets have much lower edge energy than Ann Arbor scalar targets.
+- **Blocker:** The positive v1 signal currently depends on synthetic aligned-RGB supervision and one seed. Need seed repeat / pretraining-vs-joint decision, plus a defensible external target-normalization choice before Week 5.
 
 ### Week 5 — Cross-dataset generalization
 **Goal:** show the method transfers across datasets.

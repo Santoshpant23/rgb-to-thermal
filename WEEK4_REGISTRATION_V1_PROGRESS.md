@@ -23,6 +23,7 @@ All runs use:
 | `week4_input_rgb_affine_ann_arbor_sigma03_amp_seed42` | input-space RGB affine | 15.772 | theta_l2 0.013 | -0.114 |
 | `week4_input_rgb_flow_ann_arbor_sigma03_amp_seed42` | input-space dense flow | 15.547 | flow_l2 0.0066 | -0.339 |
 | `week4_input_rgb_flow_edge1_ann_arbor_sigma03_amp_seed42` | input-space dense flow, stronger edge loss | 15.384 | flow_l2 0.0214 | -0.502 |
+| `week4_input_rgb_affine_warprgb1_ann_arbor_sigma03_amp_seed42` | input-space affine + synthetic RGB warp supervision | 16.199 | theta_l2 0.038, RGB warp MAE 0.106 | +0.313 |
 
 ## Read
 
@@ -35,12 +36,23 @@ The default dense-flow model learned very small motion and underperformed by
 further to `-0.502 dB` vs no-registration. Blindly adding warp capacity is not
 fixing the problem.
 
-This is useful: the next Week 4 step should add a direct synthetic-warp
-diagnostic/supervision path. Because the amplified Ann Arbor perturbation is
-synthetic, we can compare against the known inverse transform before spending
-more runs on TPS or external multi-dataset training. The no-registration
-baseline should remain the primary comparison for every v1 registration
-candidate.
+This was useful because it pointed to a direct synthetic-warp
+diagnostic/supervision path. The amplified Ann Arbor perturbation is synthetic,
+so we can compare against the known aligned RGB image before spending more runs
+on TPS or external multi-dataset training. The no-registration baseline should
+remain the primary comparison for every v1 registration candidate.
+
+That diagnostic now has one positive result: adding `--lambda-warp-rgb 1.0` to
+the input-space affine model reaches `16.199 dB`, which is `+0.313 dB` over
+no-registration. It also produces a larger non-trivial warp (`theta_l2=0.038`)
+than unsupervised input-space affine (`theta_l2=0.013`).
+
+This should be treated as a synthetic-supervised Week 4 signal, not as the final
+paper claim. It uses the known aligned RGB image created by the synthetic
+misalignment wrapper, so it is valid for synthetic pretraining/diagnostics but
+does not by itself solve real Kust4K/CART registration. The next check is
+whether this supervised warp path holds across seeds and transfers when used as
+a pretraining/auxiliary loss before external evaluation.
 
 ## Target-Conditioned Caveat
 

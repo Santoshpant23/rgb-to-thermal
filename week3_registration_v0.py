@@ -130,7 +130,7 @@ def resize_registration_batch(batch: dict[str, torch.Tensor], res: int) -> dict[
         return batch
     h = res
     w = int(round(res * C.RES_W / C.RES_H / 2) * 2)
-    for key in ("target", "rgb_input_raw", "rgb_input", "rgb", "depth"):
+    for key in ("target", "rgb_input_raw", "rgb_input", "rgb_raw", "rgb", "depth"):
         if key in batch and torch.is_tensor(batch[key]):
             batch[key] = F.interpolate(batch[key], size=(h, w), mode="bilinear", align_corners=False)
     return batch
@@ -453,7 +453,12 @@ def flow_regularization(flow: torch.Tensor | None) -> tuple[torch.Tensor, torch.
     return mag, smooth
 
 
-def loss_terms(out: dict[str, torch.Tensor], target: torch.Tensor, args: argparse.Namespace) -> dict[str, torch.Tensor]:
+def loss_terms(
+    out: dict[str, torch.Tensor],
+    target: torch.Tensor,
+    aligned_rgb: torch.Tensor | None,
+    args: argparse.Namespace,
+) -> dict[str, torch.Tensor]:
     pred = out["pred"]
     uncertainty = out["uncertainty"]
     weight = 1.0 / (1.0 + uncertainty)
@@ -466,6 +471,10 @@ def loss_terms(out: dict[str, torch.Tensor], target: torch.Tensor, args: argpars
     flow_mag, flow_tv = flow_regularization(out.get("flow"))
     flow_mag = flow_mag.to(pred.device)
     flow_tv = flow_tv.to(pred.device)
+    if aligned_rgb is None:
+        warp_rgb = pred.new_tensor(0.0)
+    else:
+        warp_rgb = F.l1_loss(out["warped_raw"], aligned_rgb)
     unc_tv = tv_loss(uncertainty)
     total = (
         l1
@@ -474,6 +483,7 @@ def loss_terms(out: dict[str, torch.Tensor], target: torch.Tensor, args: argpars
         + args.lambda_affine * affine
         + args.lambda_flow * flow_mag
         + args.lambda_flow_tv * flow_tv
+        + args.lambda_warp_rgb * warp_rgb
         + args.lambda_uncertainty * uncertainty.mean()
         + args.lambda_uncertainty_tv * unc_tv
     )
@@ -485,6 +495,7 @@ def loss_terms(out: dict[str, torch.Tensor], target: torch.Tensor, args: argpars
         "affine": affine.detach(),
         "flow_mag": flow_mag.detach(),
         "flow_tv": flow_tv.detach(),
+        "warp_rgb": warp_rgb.detach(),
         "uncertainty": uncertainty.mean().detach(),
         "unc_tv": unc_tv.detach(),
     }
@@ -499,6 +510,8 @@ def evaluate(model: nn.Module, loader: DataLoader, device: torch.device, res: in
         batch = resize_registration_batch(batch, res)
         rgb_raw = batch["rgb_input_raw"].to(device)
         target = batch["target"].to(device)
+        aligned_rgb = batch.get("rgb_raw")
+        aligned_rgb = aligned_rgb.to(device) if torch.is_tensor(aligned_rgb) else None
         out = model(rgb_raw, target)
         pred = out["pred"].cpu().numpy()
         tgt = target.cpu().numpy()
@@ -517,6 +530,11 @@ def evaluate(model: nn.Module, loader: DataLoader, device: torch.device, res: in
                     "uncertainty": float(uncertainty[i].mean()),
                     "flow_l2": float(flow_cpu[i].square().mean().sqrt()) if flow_cpu is not None else 0.0,
                     "flow_tv": float(tv_loss(flow_cpu[i : i + 1])) if flow_cpu is not None else 0.0,
+                    "warp_rgb_mae": (
+                        float(F.l1_loss(out["warped_raw"][i : i + 1], aligned_rgb[i : i + 1]).detach().cpu())
+                        if aligned_rgb is not None
+                        else 0.0
+                    ),
                 }
             )
     keys = rows[0].keys()
@@ -554,6 +572,7 @@ def main() -> None:
     parser.add_argument("--lambda-affine", type=float, default=0.02)
     parser.add_argument("--lambda-flow", type=float, default=0.02)
     parser.add_argument("--lambda-flow-tv", type=float, default=0.01)
+    parser.add_argument("--lambda-warp-rgb", type=float, default=0.0)
     parser.add_argument("--lambda-uncertainty", type=float, default=0.01)
     parser.add_argument("--lambda-uncertainty-tv", type=float, default=0.005)
     parser.add_argument("--max-flow", type=float, default=DEFAULT_MAX_FLOW)
@@ -623,8 +642,10 @@ def main() -> None:
             batch = resize_registration_batch(batch, args.res)
             rgb_raw = batch["rgb_input_raw"].to(device)
             target = batch["target"].to(device)
+            aligned_rgb = batch.get("rgb_raw")
+            aligned_rgb = aligned_rgb.to(device) if torch.is_tensor(aligned_rgb) else None
             out = model(rgb_raw, target)
-            losses = loss_terms(out, target, args)
+            losses = loss_terms(out, target, aligned_rgb, args)
             opt.zero_grad(set_to_none=True)
             losses["total"].backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
