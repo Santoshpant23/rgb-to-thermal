@@ -183,9 +183,10 @@ Submit primarily to **WACV 2027 R2 (Aug 28, 2026), Algorithms track** only if We
   margin is within expected seed variance and also changes both encoder and
   decoder. See `WEEK6_BASELINES_RESULT.md` and
   `results/week6_baseline_summary.csv`.
-- **Blocker:** Resolved by the early Week 7 seed audit. The remaining paper
-  blocker is not seed variance; it is the decoder/backbone confound for the
-  Swin-T row and the fact that registration does not stack on Swin-T at seed 42.
+- **Blocker:** Resolved by Week 7. The remaining paper blocker is the
+  decoder/backbone confound for the Swin-T row. Swin-T affine stacking is
+  near-null/negative over three seeds, and the best ConvNeXt method is the
+  deterministic affine variant found in Week 7.
 
 ### Week 7 — Ablations
 **Goal:** every claim in the paper has an ablation.
@@ -194,27 +195,33 @@ Submit primarily to **WACV 2027 R2 (Aug 28, 2026), Algorithms track** only if We
   robust 50-epoch protocol.
 - [x] Swin-T + supervised-affine registration head at seed 42; if positive,
   repeat seeds `{7, 123}`. Seed 42 was negative, so seeds `{7, 123}` were not
-  run for this variant.
+  initially run for this variant. Audit follow-up ran all three seeds:
+  `-0.064 +/- 0.214 dB` vs Swin-T no-registration.
 - [ ] Decoder/backbone control: isolate whether Swin-T's seed-42 gain is from
   encoder choice, decoder choice, or both.
-- [ ] No registration vs fixed crop vs learned-deterministic vs learned + uncertainty (full table).
-- [ ] Uncertainty calibration on/off.
-- [ ] Synthetic misalignment severity sweep (continuous curve).
-- [ ] Loss term ablation (photometric / smoothness / uncertainty-weighted recon).
-- [ ] Train-on-one-test-on-others (already in week 5; format for paper).
+- [x] No registration vs learned-deterministic vs learned + uncertainty (full
+  table). Fixed crop stays a legacy raw-data baseline because the Week 7
+  synthetic harness starts from already registered RGB.
+- [x] Uncertainty calibration on/off.
+- [x] Synthetic misalignment severity sweep (seed-42 diagnostic curve).
+- [x] Loss term ablation (warp supervision / edge / SSIM / affine regularizer / uncertainty-weighted recon).
+- [x] Train-on-one-test-on-others (already in week 5; format for paper).
 - [ ] Persistence of gains without TTA / without ensemble (important).
-- **Result:** Early Week 7 audit completed. ConvNeXt supervised-affine beats
-  ConvNeXt no-registration consistently over three seeds, but only modestly:
-  `+0.260 +/- 0.021 dB`. Swin-T+U-Net remains the strongest audited mean row
-  at `16.228 +/- 0.106 dB`, but its advantage over ConvNeXt supervised-affine
-  is only `+0.096 +/- 0.096 dB`. Swin-T + supervised-affine registration is
-  negative at seed 42 (`-0.122 dB` vs Swin-T no-registration), so the
-  registration head does not stack on the stronger backbone. See
-  `WEEK7_SEED_AUDIT_RESULT.md` and
-  `results/week7_seed_audit_summary.csv`.
+- **Result:** Week 7 ablations changed the primary method. ConvNeXt
+  supervised-affine with uncertainty weighting is repeatable but modest:
+  `+0.260 +/- 0.021 dB` over no-registration. Disabling uncertainty weighting
+  and regularization gives the stronger deterministic affine method:
+  `16.444 +/- 0.127 dB`, or `+0.571 +/- 0.157 dB` over no-registration. It also
+  beats Swin-T no-registration by `+0.215 +/- 0.113 dB` in the paired 3-seed
+  table. Swin-T affine does not stack reliably (`-0.064 +/- 0.214 dB`). Loss
+  ablations show the largest seed-42 drops from removing RGB warp supervision
+  (`-0.498 dB`) and adding uncertainty weighting (`-0.392 dB`). See
+  `WEEK7_ABLATIONS_RESULT.md` and `results/week7_ablation_summary.csv`.
 - **Blocker:** Decoder/backbone control is still needed before attributing the
-  Swin-T gain to the encoder. The registration claim should stay limited to a
-  small ConvNeXt-family ablation unless a stronger stacking result appears.
+  Swin-T row to the encoder. Multi-seed severity is still needed if the
+  severity curve becomes a main paper figure. The current paper claim should
+  be deterministic synthetic-warp-supervised affine registration, with
+  uncertainty maps treated as diagnostics rather than reconstruction weights.
 
 ### Week 8 — Qualitative figures + failure cases
 **Goal:** the figures that win or lose the paper.

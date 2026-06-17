@@ -72,13 +72,16 @@ baseline, while a stronger transformer-backbone proxy is also competitive. Week
 ## Post-Audit Update
 
 The Week 7 seed audit resolved the biggest Week 6 uncertainty. Over three
-seeds, ConvNeXt supervised affine beats ConvNeXt no-registration by
-`+0.260 +/- 0.021 dB`, so the effect is repeatable but below the old `+0.3 dB`
-threshold. Swin-T+U-Net remains the strongest audited mean row, but only by
-`+0.096 +/- 0.096 dB` over ConvNeXt supervised affine. Swin-T +
-supervised-affine registration was negative at seed 42 (`-0.122 dB`), so the
-registration head should not be framed as a generic module that stacks on the
-stronger backbone.
+seeds, ConvNeXt supervised affine with uncertainty weighting beats ConvNeXt
+no-registration by `+0.260 +/- 0.021 dB`, so the effect is repeatable but below
+the old `+0.3 dB` threshold. The later Week 7 ablation pass found a better
+variant: disabling uncertainty weighting raises the ConvNeXt affine mean to
+`16.444 +/- 0.127 dB`, or `+0.571 +/- 0.157 dB` over no-registration.
+
+Swin-T+U-Net no longer clearly beats the revised ConvNeXt method. Swin-T +
+supervised-affine registration has a near-null/negative three-seed delta
+(`-0.064 +/- 0.214 dB`) versus Swin-T no-registration, so the registration head
+should not be framed as a generic module that stacks on that backbone.
 
 See `WEEK7_SEED_AUDIT_RESULT.md` and
-`results/week7_seed_audit_summary.csv`.
+`WEEK7_ABLATIONS_RESULT.md`.

@@ -616,7 +616,10 @@ def loss_terms(
 ) -> dict[str, torch.Tensor]:
     pred = out["pred"]
     uncertainty = out["uncertainty"]
-    weight = 1.0 / (1.0 + uncertainty)
+    if args.disable_uncertainty_weight:
+        weight = torch.ones_like(uncertainty)
+    else:
+        weight = 1.0 / (1.0 + uncertainty)
     l1 = (weight * (pred - target).abs()).sum() / (weight.sum() + 1e-6)
     ssim_loss = 1.0 - C.ssim(pred, target)
     pred_edge = edge_magnitude(out["warped_raw"])
@@ -631,17 +634,28 @@ def loss_terms(
     else:
         warp_rgb = F.l1_loss(out["warped_raw"], aligned_rgb)
     unc_tv = tv_loss(uncertainty)
-    total = (
-        l1
-        + args.lambda_ssim * ssim_loss
-        + args.lambda_edge * edge
-        + args.lambda_affine * affine
-        + args.lambda_flow * flow_mag
-        + args.lambda_flow_tv * flow_tv
-        + args.lambda_warp_rgb * warp_rgb
-        + args.lambda_uncertainty * uncertainty.mean()
-        + args.lambda_uncertainty_tv * unc_tv
-    )
+    if args.loss_recipe == "swin_combined":
+        l1 = F.l1_loss(pred, target)
+        edge = C.grad_loss(pred, target)
+        total = (
+            C.combined_loss(pred, target)
+            + args.lambda_affine * affine
+            + args.lambda_flow * flow_mag
+            + args.lambda_flow_tv * flow_tv
+            + args.lambda_warp_rgb * warp_rgb
+        )
+    else:
+        total = (
+            l1
+            + args.lambda_ssim * ssim_loss
+            + args.lambda_edge * edge
+            + args.lambda_affine * affine
+            + args.lambda_flow * flow_mag
+            + args.lambda_flow_tv * flow_tv
+            + args.lambda_warp_rgb * warp_rgb
+            + args.lambda_uncertainty * uncertainty.mean()
+            + args.lambda_uncertainty_tv * unc_tv
+        )
     return {
         "total": total,
         "l1": l1.detach(),
@@ -738,6 +752,8 @@ def main() -> None:
     parser.add_argument("--lambda-warp-rgb", type=float, default=0.0)
     parser.add_argument("--lambda-uncertainty", type=float, default=0.01)
     parser.add_argument("--lambda-uncertainty-tv", type=float, default=0.005)
+    parser.add_argument("--disable-uncertainty-weight", action="store_true")
+    parser.add_argument("--loss-recipe", default="registration", choices=["registration", "swin_combined"])
     parser.add_argument("--max-flow", type=float, default=DEFAULT_MAX_FLOW)
     parser.add_argument("--init-checkpoint", default=None)
     parser.add_argument("--max-train", type=int, default=0)

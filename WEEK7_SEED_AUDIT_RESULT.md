@@ -5,6 +5,9 @@ Date: 2026-06-16
 This follow-up addresses the Week 6 audit concerns about seed variance and the
 Swin-T stacking question.
 
+Note: this memo is the early seed audit. `WEEK7_ABLATIONS_RESULT.md` supersedes
+its method-ranking conclusion after the deterministic affine ablation.
+
 ## Protocol
 
 - dataset: Ann Arbor train -> Ann Arbor val
@@ -44,7 +47,7 @@ Swin-T no-reg vs ConvNeXt supervised-affine:
 
 ## Swin-T Registration Stacking
 
-Swin-T + supervised-affine registration, seed 42:
+Initial Swin-T + supervised-affine registration, seed 42:
 
 | Model | PSNR | SSIM | Pearson r |
 |---|---:|---:|---:|
@@ -52,16 +55,20 @@ Swin-T + supervised-affine registration, seed 42:
 | Swin-T supervised affine | 16.001 | 0.567 | 0.833 |
 | Delta | -0.122 | +0.000 | -0.001 |
 
-Since the stacking check is negative at seed 42, seeds 7 and 123 were not run
-for Swin-T supervised affine.
+Follow-up seeds 7 and 123 were later run; see `WEEK7_ABLATIONS_RESULT.md` and
+`results/week7_ablation_summary.csv`. The three-seed Swin-T affine delta is
+near-null/negative: `-0.064 +/- 0.214 dB`.
 
 ## Decision
 
 - The ConvNeXt registration effect is stable and positive, but modest:
   `+0.260 +/- 0.021 dB`. It does not clear the old `+0.3 dB` threshold.
-- Swin-T no-reg is the best mean row among the audited families, but its mean
-  advantage over ConvNeXt supervised affine is only `+0.096 dB`.
-- The supervised-affine head does not stack on Swin-T at seed 42.
+- In this early table, Swin-T no-reg is the best mean row among the audited
+  families, but its mean advantage over ConvNeXt supervised affine is only
+  `+0.096 dB`. This ranking is superseded by the deterministic ConvNeXt affine
+  ablation in `WEEK7_ABLATIONS_RESULT.md`.
+- The supervised-affine head does not show a reliable stacking benefit on
+  Swin-T over three seeds.
 - The current registration claim should be framed as a ConvNeXt-family ablation:
   synthetic warp supervision gives a small, repeatable gain over no-registration
   with the same backbone/decoder.
