@@ -115,15 +115,15 @@ limit cross-dataset claims.
 | Slot | Artifact | Status |
 |---|---|---|
 | Figure 1 | Hero Ann Arbor scene | `figures/week8/hero_ann_arbor_seed42.png` |
-| Figure 2 | Method diagram | TODO in Week 9/11 |
+| Figure 2 | Method diagram | `paper_draft/method_diagram.svg` |
 | Figure 3 | Multi-sigma recovery | `figures/week8/misalignment_recovery_multisigma_seed42.png` |
 | Figure 4 | Failure cases | `figures/week8/failure_cases_ann_arbor_seed42.png` |
 | Appendix Fig. A | Candidate grid | `figures/week8/ann_arbor_candidate_grid_seed42.png` |
 | Appendix Fig. B | Cross-dataset qualitative gallery | `figures/week8/cross_dataset_gallery_seed42.png` |
-| Table 1 | Dataset counts and normalization | TODO |
-| Table 2 | Baselines: ConvNeXt, Swin-T, pix2pix, CycleGAN | use Week 6/7 CSVs |
-| Table 3 | Main ablation: no-reg vs affine + uncertainty vs uncertainty-decoupled affine | use Week 7 CSV |
-| Table 4 | External/cross-dataset results | use Week 5, with Kust4K caveat |
+| Table 1 | Dataset counts and normalization | `paper_draft/tables_and_captions.md` |
+| Table 2 | Baselines: ConvNeXt, Swin-T, pix2pix, CycleGAN | `paper_draft/tables_and_captions.md` |
+| Table 3 | Main ablation: no-reg vs affine + uncertainty vs uncertainty-decoupled affine | `paper_draft/tables_and_captions.md` |
+| Table 4 | External/cross-dataset results | `paper_draft/tables_and_captions.md`, with Kust4K caveat |
 
 ## Claim Guardrails
 
