@@ -79,8 +79,9 @@ class PairedMisalignmentDataset(Dataset):
     def __len__(self) -> int:
         return len(self.base)
 
-    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         rgb, _thermal, scalar, _tag, _quality = self.base[idx]
+        aligned_rgb = rgb
         sigma = self.args.train_sigma if self.train else self.args.eval_sigma
         seed = self.args.seed if self.train else self.args.seed + 100000
         rgb = _warp_rgb(
@@ -93,7 +94,7 @@ class PairedMisalignmentDataset(Dataset):
             max_rotation_deg=self.args.max_rotation_deg,
             max_scale_frac=self.args.max_scale_frac,
         )
-        return rgb, scalar
+        return rgb, scalar, aligned_rgb
 
 
 class ConvBlock(nn.Module):
@@ -131,6 +132,7 @@ class SwinUNet(nn.Module):
         if len(chs) < 4:
             raise ValueError(f"Expected at least four feature levels from {encoder}, got {chs}")
         chs = chs[-4:]
+        self.feature_channels = chs
         self.up3 = ConvBlock(chs[3] + chs[2], chs[2])
         self.up2 = ConvBlock(chs[2] + chs[1], chs[1])
         self.up1 = ConvBlock(chs[1] + chs[0], chs[0])
@@ -142,7 +144,10 @@ class SwinUNet(nn.Module):
         return F.interpolate(x, size=ref.shape[2:], mode="bilinear", align_corners=False)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        feats = [self._to_nchw(feat) for feat in self.enc(normalize_rgb(x))[-4:]]
+        feats = [
+            self._to_nchw(feat, expected_ch)
+            for feat, expected_ch in zip(self.enc(normalize_rgb(x))[-4:], self.feature_channels)
+        ]
         f1, f2, f3, f4 = feats
         d3 = self.up3(torch.cat([self._up(f4, f3), f3], dim=1))
         d2 = self.up2(torch.cat([self._up(d3, f2), f2], dim=1))
@@ -154,10 +159,65 @@ class SwinUNet(nn.Module):
         return torch.sigmoid(out)
 
     @staticmethod
-    def _to_nchw(feat: torch.Tensor) -> torch.Tensor:
-        if feat.ndim == 4 and feat.shape[1] < feat.shape[-1]:
+    def _to_nchw(feat: torch.Tensor, expected_ch: int) -> torch.Tensor:
+        if feat.ndim != 4:
+            raise ValueError(f"Expected 4D feature map, got shape {tuple(feat.shape)}")
+        if feat.shape[1] == expected_ch:
+            return feat
+        if feat.shape[-1] == expected_ch:
             return feat.permute(0, 3, 1, 2).contiguous()
-        return feat
+        raise ValueError(f"Cannot infer feature layout for shape {tuple(feat.shape)} and channels {expected_ch}")
+
+
+def apply_affine(x: torch.Tensor, theta: torch.Tensor) -> torch.Tensor:
+    grid = F.affine_grid(theta, x.shape, align_corners=False)
+    return F.grid_sample(x, grid, mode="bilinear", align_corners=False)
+
+
+def affine_identity_loss(theta: torch.Tensor) -> torch.Tensor:
+    ident = torch.tensor(
+        [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
+        dtype=theta.dtype,
+        device=theta.device,
+    ).view(1, 2, 3)
+    return F.mse_loss(theta, ident.expand_as(theta))
+
+
+class RGBInputAffineSwinUNet(nn.Module):
+    def __init__(self, encoder: str, height: int, width: int, pretrained: bool = True, reg_base: int = 32):
+        super().__init__()
+        self.reg_enc = nn.Sequential(
+            nn.Conv2d(3, reg_base, 5, stride=2, padding=2),
+            nn.GroupNorm(8, reg_base),
+            nn.GELU(),
+            nn.Conv2d(reg_base, reg_base * 2, 3, stride=2, padding=1),
+            nn.GroupNorm(8, reg_base * 2),
+            nn.GELU(),
+            nn.Conv2d(reg_base * 2, reg_base * 4, 3, stride=2, padding=1),
+            nn.GroupNorm(8, reg_base * 4),
+            nn.GELU(),
+            nn.Conv2d(reg_base * 4, reg_base * 4, 3, padding=1),
+            nn.GroupNorm(8, reg_base * 4),
+            nn.GELU(),
+        )
+        self.theta = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            nn.Flatten(),
+            nn.Linear(reg_base * 4, reg_base * 4),
+            nn.GELU(),
+            nn.Linear(reg_base * 4, 6),
+        )
+        nn.init.zeros_(self.theta[-1].weight)
+        with torch.no_grad():
+            self.theta[-1].bias.copy_(torch.tensor([1.0, 0.0, 0.0, 0.0, 1.0, 0.0]))
+        self.translator = SwinUNet(encoder, height, width, pretrained=pretrained)
+
+    def forward(self, rgb_raw: torch.Tensor) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
+        feat = self.reg_enc(rgb_raw)
+        theta = self.theta(feat).view(-1, 2, 3)
+        warped_raw = apply_affine(rgb_raw, theta)
+        pred = self.translator(warped_raw)
+        return pred, {"theta": theta, "warped_raw": warped_raw}
 
 
 def normalize_rgb(rgb: torch.Tensor) -> torch.Tensor:
@@ -186,19 +246,39 @@ def metrics_np(pred: np.ndarray, target: np.ndarray) -> dict[str, float]:
 def evaluate(model: nn.Module, loader: DataLoader, device: torch.device) -> dict[str, float]:
     model.eval()
     rows = []
-    for rgb, target in loader:
+    for rgb, target, aligned_rgb in loader:
         rgb = rgb.to(device)
-        pred = model(rgb).detach().cpu().numpy()
+        aligned_rgb = aligned_rgb.to(device)
+        with torch.no_grad():
+            out = model(rgb)
+        if isinstance(out, tuple):
+            pred_t, aux = out
+            theta = aux["theta"]
+            warped = aux["warped_raw"]
+        else:
+            pred_t = out
+            theta = None
+            warped = None
+        pred = pred_t.detach().cpu().numpy()
         target_np = target.numpy()
         for i in range(pred.shape[0]):
-            rows.append(metrics_np(pred[i, 0], target_np[i, 0]))
+            row = metrics_np(pred[i, 0], target_np[i, 0])
+            if theta is not None:
+                row["theta_l2"] = float((theta[i] - theta.new_tensor([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])).square().mean().sqrt().detach().cpu())
+            else:
+                row["theta_l2"] = 0.0
+            if warped is not None:
+                row["warp_rgb_mae"] = float(F.l1_loss(warped[i : i + 1], aligned_rgb[i : i + 1]).detach().cpu())
+            else:
+                row["warp_rgb_mae"] = 0.0
+            rows.append(row)
     return {key: float(np.mean([row[key] for row in rows])) for key in rows[0]}
 
 
 def run_name(args: argparse.Namespace) -> str:
     if args.run_name:
         return args.run_name
-    return f"swin_unet_{args.dataset}_robust_sigma{args.train_sigma:.1f}_seed{args.seed}_e{args.epochs}"
+    return f"{args.arch}_{args.dataset}_robust_sigma{args.train_sigma:.1f}_seed{args.seed}_e{args.epochs}"
 
 
 def train(args: argparse.Namespace) -> None:
@@ -219,7 +299,12 @@ def train(args: argparse.Namespace) -> None:
     )
     eval_loader = DataLoader(eval_ds, batch_size=args.batch_size, shuffle=False, num_workers=args.workers, pin_memory=True)
 
-    model = SwinUNet(args.encoder, args.height, args.width, pretrained=not args.no_pretrained).to(device)
+    if args.arch == "no_registration":
+        model = SwinUNet(args.encoder, args.height, args.width, pretrained=not args.no_pretrained).to(device)
+    elif args.arch == "input_rgb_affine":
+        model = RGBInputAffineSwinUNet(args.encoder, args.height, args.width, pretrained=not args.no_pretrained).to(device)
+    else:
+        raise ValueError(args.arch)
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=args.epochs)
 
@@ -228,6 +313,7 @@ def train(args: argparse.Namespace) -> None:
     metadata = {
         **vars(args),
         "model": "swin_unet",
+        "arch": args.arch,
         "train_size": len(train_ds),
         "eval_size": len(eval_ds),
         "device": str(device),
@@ -240,11 +326,21 @@ def train(args: argparse.Namespace) -> None:
     for epoch in range(1, args.epochs + 1):
         model.train()
         losses = []
-        for rgb, target in train_loader:
+        for rgb, target, aligned_rgb in train_loader:
             rgb = rgb.to(device)
             target = target.to(device)
-            pred = model(rgb)
-            loss = C.combined_loss(pred, target)
+            aligned_rgb = aligned_rgb.to(device)
+            out = model(rgb)
+            if isinstance(out, tuple):
+                pred, aux = out
+                warp_rgb = F.l1_loss(aux["warped_raw"], aligned_rgb)
+                affine = affine_identity_loss(aux["theta"])
+            else:
+                pred = out
+                warp_rgb = torch.zeros((), device=device)
+                affine = torch.zeros((), device=device)
+            recon = C.combined_loss(pred, target)
+            loss = recon + args.lambda_warp_rgb * warp_rgb + args.lambda_affine * affine
             opt.zero_grad(set_to_none=True)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
@@ -275,6 +371,7 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument("--caltech-root")
     ap.add_argument("--eval-split", default="val", choices=["val", "test"])
     ap.add_argument("--encoder", default="swin_tiny_patch4_window7_224.ms_in1k")
+    ap.add_argument("--arch", default="no_registration", choices=["no_registration", "input_rgb_affine"])
     ap.add_argument("--no-pretrained", action="store_true")
     ap.add_argument("--target-normalization", default="robust", choices=["raw", "robust", "histmatch"])
     ap.add_argument("--target-normalization-stats")
@@ -289,6 +386,8 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument("--batch-size", type=int, default=4)
     ap.add_argument("--workers", type=int, default=2)
     ap.add_argument("--lr", type=float, default=2e-4)
+    ap.add_argument("--lambda-warp-rgb", type=float, default=0.0)
+    ap.add_argument("--lambda-affine", type=float, default=0.02)
     ap.add_argument("--max-train", type=int, default=0)
     ap.add_argument("--max-eval", type=int, default=0)
     ap.add_argument("--seed", type=int, default=42)

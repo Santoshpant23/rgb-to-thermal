@@ -174,27 +174,47 @@ Submit primarily to **WACV 2027 R2 (Aug 28, 2026), Algorithms track** only if We
   epochs, 336 train / 41 val.
 - [x] Lock the seed-42 baseline table; this is the current "results" comparison
   table, pending any Week 7 multi-seed reruns.
-- **Result:** Week 6 complete. Under the matched robust protocol, CycleGAN
-  reaches `8.60 dB`, pix2pix `11.83 dB`, small L1 U-Net `12.71 dB`,
-  ConvNeXt+U-Net `15.64 dB`, supervised-affine registration `15.92 dB`, and
-  Swin-T+U-Net `16.12 dB`. The method beats ConvNeXt+U-Net by `+0.284 dB` but
-  loses to the stronger pretrained Swin-T baseline by `-0.203 dB`. See
-  `WEEK6_BASELINES_RESULT.md` and `results/week6_baseline_summary.csv`.
-- **Blocker:** Week 6 removes any claim that the current supervised-affine
-  method is the top-performing model. Week 7 should either add the registration
-  head to the Swin-T backbone or frame registration as a diagnostic/ablation
-  rather than the headline method.
+- **Result:** Week 6 complete as a seed-42 table. Under the matched robust
+  protocol, CycleGAN reaches `8.60 dB`, pix2pix `11.83 dB`, small L1 U-Net
+  `12.71 dB`, ConvNeXt+U-Net `15.64 dB`, supervised-affine registration
+  `15.92 dB`, and Swin-T+U-Net `16.12 dB`. The clean registration comparison
+  is ConvNeXt no-registration vs ConvNeXt supervised-affine: `+0.284 dB`.
+  Swin-T+U-Net is `+0.203 dB` above supervised-affine at seed 42, but this
+  margin is within expected seed variance and also changes both encoder and
+  decoder. See `WEEK6_BASELINES_RESULT.md` and
+  `results/week6_baseline_summary.csv`.
+- **Blocker:** Resolved by the early Week 7 seed audit. The remaining paper
+  blocker is not seed variance; it is the decoder/backbone confound for the
+  Swin-T row and the fact that registration does not stack on Swin-T at seed 42.
 
 ### Week 7 — Ablations
 **Goal:** every claim in the paper has an ablation.
+- [x] Seed audit for backbone rows: ConvNeXt no-registration, ConvNeXt
+  supervised-affine, and Swin-T+U-Net at seeds `{7, 123}` under the Week 6
+  robust 50-epoch protocol.
+- [x] Swin-T + supervised-affine registration head at seed 42; if positive,
+  repeat seeds `{7, 123}`. Seed 42 was negative, so seeds `{7, 123}` were not
+  run for this variant.
+- [ ] Decoder/backbone control: isolate whether Swin-T's seed-42 gain is from
+  encoder choice, decoder choice, or both.
 - [ ] No registration vs fixed crop vs learned-deterministic vs learned + uncertainty (full table).
 - [ ] Uncertainty calibration on/off.
 - [ ] Synthetic misalignment severity sweep (continuous curve).
 - [ ] Loss term ablation (photometric / smoothness / uncertainty-weighted recon).
 - [ ] Train-on-one-test-on-others (already in week 5; format for paper).
 - [ ] Persistence of gains without TTA / without ensemble (important).
-- **Result:**
-- **Blocker:**
+- **Result:** Early Week 7 audit completed. ConvNeXt supervised-affine beats
+  ConvNeXt no-registration consistently over three seeds, but only modestly:
+  `+0.260 +/- 0.021 dB`. Swin-T+U-Net remains the strongest audited mean row
+  at `16.228 +/- 0.106 dB`, but its advantage over ConvNeXt supervised-affine
+  is only `+0.096 +/- 0.096 dB`. Swin-T + supervised-affine registration is
+  negative at seed 42 (`-0.122 dB` vs Swin-T no-registration), so the
+  registration head does not stack on the stronger backbone. See
+  `WEEK7_SEED_AUDIT_RESULT.md` and
+  `results/week7_seed_audit_summary.csv`.
+- **Blocker:** Decoder/backbone control is still needed before attributing the
+  Swin-T gain to the encoder. The registration claim should stay limited to a
+  small ConvNeXt-family ablation unless a stronger stacking result appears.
 
 ### Week 8 — Qualitative figures + failure cases
 **Goal:** the figures that win or lose the paper.
