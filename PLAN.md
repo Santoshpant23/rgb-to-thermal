@@ -186,7 +186,7 @@ Submit primarily to **WACV 2027 R2 (Aug 28, 2026), Algorithms track** only if We
 - **Blocker:** Resolved by Week 7. The remaining paper blocker is the
   decoder/backbone confound for the Swin-T row. Swin-T affine stacking is
   near-null/negative over three seeds, and the best ConvNeXt method is the
-  deterministic affine variant found in Week 7.
+  uncertainty-decoupled affine variant found in Week 7.
 
 ### Week 7 — Ablations
 **Goal:** every claim in the paper has an ablation.
@@ -199,9 +199,10 @@ Submit primarily to **WACV 2027 R2 (Aug 28, 2026), Algorithms track** only if We
   `-0.064 +/- 0.214 dB` vs Swin-T no-registration.
 - [ ] Decoder/backbone control: isolate whether Swin-T's seed-42 gain is from
   encoder choice, decoder choice, or both.
-- [x] No registration vs learned-deterministic vs learned + uncertainty (full
-  table). Fixed crop stays a legacy raw-data baseline because the Week 7
-  synthetic harness starts from already registered RGB.
+- [x] No registration vs learned uncertainty-decoupled affine vs learned +
+  uncertainty weighting (full table). Fixed crop stays a legacy raw-data
+  baseline because the Week 7 synthetic harness starts from already registered
+  RGB.
 - [x] Uncertainty calibration on/off.
 - [x] Synthetic misalignment severity sweep (seed-42 diagnostic curve).
 - [x] Loss term ablation (warp supervision / edge / SSIM / affine regularizer / uncertainty-weighted recon).
@@ -209,8 +210,9 @@ Submit primarily to **WACV 2027 R2 (Aug 28, 2026), Algorithms track** only if We
 - [ ] Persistence of gains without TTA / without ensemble (important).
 - **Result:** Week 7 ablations changed the primary method. ConvNeXt
   supervised-affine with uncertainty weighting is repeatable but modest:
-  `+0.260 +/- 0.021 dB` over no-registration. Disabling uncertainty weighting
-  and regularization gives the stronger deterministic affine method:
+  `+0.260 +/- 0.021 dB` over no-registration. Decoupling uncertainty from
+  reconstruction weighting and setting its regularizers to zero gives the
+  stronger uncertainty-decoupled affine method:
   `16.444 +/- 0.127 dB`, or `+0.571 +/- 0.157 dB` over no-registration. It also
   beats Swin-T no-registration by `+0.215 +/- 0.113 dB` in the paired 3-seed
   table. Swin-T affine does not stack reliably (`-0.064 +/- 0.214 dB`). Loss
@@ -220,18 +222,31 @@ Submit primarily to **WACV 2027 R2 (Aug 28, 2026), Algorithms track** only if We
 - **Blocker:** Decoder/backbone control is still needed before attributing the
   Swin-T row to the encoder. Multi-seed severity is still needed if the
   severity curve becomes a main paper figure. The current paper claim should
-  be deterministic synthetic-warp-supervised affine registration, with
+  be uncertainty-decoupled synthetic-warp-supervised affine registration, with
   uncertainty maps treated as diagnostics rather than reconstruction weights.
 
 ### Week 8 — Qualitative figures + failure cases
 **Goal:** the figures that win or lose the paper.
+- [x] Figure tooling: `week8_make_qualitative_figures.py` loads the locked Week
+  7 primary checkpoint, scores Ann Arbor val, and exports candidate grids plus
+  per-sample metrics.
+- [x] Ann Arbor candidate grid: RGB input, learned warp, target, prediction,
+  absolute error, and uncertainty.
+- [x] Misalignment recovery candidate grid: misaligned RGB, aligned RGB,
+  predicted warp, before/after residual, and target.
 - [ ] Hero figure: a single scene with RGB, GT thermal, our prediction, plus the uncertainty map. Pick something with a hot roof + cool tree + a building edge.
 - [ ] Cross-dataset gallery: three rows (Ann Arbor / Kust4K / CART) × four columns (RGB / GT / ours / best baseline).
 - [ ] Misalignment recovery figure: same scene with synthetic misalignment at σ ∈ {0, 0.2, 0.5}, our prediction vs baseline.
 - [ ] Failure cases: at least 2 honest failures (e.g., parallax-heavy buildings; specular reflections).
 - [ ] All figures committed in `figures/` at vector-quality (PDF) or 300+ dpi.
-- **Result:**
-- **Blocker:**
+- **Result:** Started Week 8 qualitative figure production. Generated
+  `figures/week8/ann_arbor_candidate_grid_seed42.png`,
+  `figures/week8/misalignment_recovery_seed42.png`, and
+  `figures/week8/ann_arbor_candidate_metrics_seed42.csv` from the locked
+  seed-42 uncertainty-decoupled affine checkpoint.
+- **Blocker:** These are candidate PNG grids, not final paper figures. The
+  final figure pass still needs cross-dataset rows, baseline columns, a
+  multi-sigma recovery view, and selected failure cases.
 
 ### Week 9 — Paper writing draft 1
 **Goal:** full draft submitted to ourselves and Prof. Siwo.

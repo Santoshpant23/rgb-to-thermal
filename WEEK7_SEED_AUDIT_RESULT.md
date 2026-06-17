@@ -6,7 +6,7 @@ This follow-up addresses the Week 6 audit concerns about seed variance and the
 Swin-T stacking question.
 
 Note: this memo is the early seed audit. `WEEK7_ABLATIONS_RESULT.md` supersedes
-its method-ranking conclusion after the deterministic affine ablation.
+its method-ranking conclusion after the uncertainty-decoupled affine ablation.
 
 ## Protocol
 
@@ -65,8 +65,8 @@ near-null/negative: `-0.064 +/- 0.214 dB`.
   `+0.260 +/- 0.021 dB`. It does not clear the old `+0.3 dB` threshold.
 - In this early table, Swin-T no-reg is the best mean row among the audited
   families, but its mean advantage over ConvNeXt supervised affine is only
-  `+0.096 dB`. This ranking is superseded by the deterministic ConvNeXt affine
-  ablation in `WEEK7_ABLATIONS_RESULT.md`.
+  `+0.096 dB`. This ranking is superseded by the uncertainty-decoupled
+  ConvNeXt affine ablation in `WEEK7_ABLATIONS_RESULT.md`.
 - The supervised-affine head does not show a reliable stacking benefit on
   Swin-T over three seeds.
 - The current registration claim should be framed as a ConvNeXt-family ablation:

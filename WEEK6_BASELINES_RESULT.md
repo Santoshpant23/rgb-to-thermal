@@ -75,8 +75,9 @@ The Week 7 seed audit resolved the biggest Week 6 uncertainty. Over three
 seeds, ConvNeXt supervised affine with uncertainty weighting beats ConvNeXt
 no-registration by `+0.260 +/- 0.021 dB`, so the effect is repeatable but below
 the old `+0.3 dB` threshold. The later Week 7 ablation pass found a better
-variant: disabling uncertainty weighting raises the ConvNeXt affine mean to
-`16.444 +/- 0.127 dB`, or `+0.571 +/- 0.157 dB` over no-registration.
+variant: decoupling uncertainty from reconstruction weighting raises the
+ConvNeXt affine mean to `16.444 +/- 0.127 dB`, or `+0.571 +/- 0.157 dB` over
+no-registration.
 
 Swin-T+U-Net no longer clearly beats the revised ConvNeXt method. Swin-T +
 supervised-affine registration has a near-null/negative three-seed delta
