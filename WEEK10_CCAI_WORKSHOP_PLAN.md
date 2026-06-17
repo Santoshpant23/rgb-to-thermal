@@ -93,3 +93,5 @@ for top-level framing review.
   posted.
 - Confirm the final page limit, appendix policy, and review format from the
   2026 CFP before converting this scaffold to LaTeX.
+- Schedule a separate CCAI-short-draft review pass after the CFP appears; do
+  not assume the WACV internal review fully covers the compressed workshop text.

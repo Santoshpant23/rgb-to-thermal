@@ -22,14 +22,17 @@ limit cross-dataset claims.
 
 Aerial thermal imagery is useful for urban heat analysis, infrastructure
 inspection, and remote sensing workflows where surface temperature patterns
-matter but direct thermal capture may be scarce or expensive. RGB imagery is
-more abundant, easier to collect, and often higher resolution, motivating
-paired RGB-to-thermal translation models that predict a thermal-like scalar map
-from visible imagery. In UAV settings, however, paired RGB and thermal imagery
-is rarely a perfectly controlled image-to-image problem. Slight camera
-misalignment, different optics, target normalization choices, and dataset
-preprocessing conventions can dominate the apparent behavior of a translation
-model.
+matter but direct thermal capture may be scarce or expensive
+[@voogt2003thermal; @weng2004estimation; @imhoff2010remote; @stewart2012local;
+@phelan2015urban; @ipcc2022wgii]. RGB imagery is more abundant, easier to
+collect, and often higher resolution, motivating paired RGB-to-thermal
+translation models that predict a thermal-like scalar map from visible imagery
+[@isola2017pix2pix; @zhu2017cyclegan; @xia2025thermalgen; @sherpa2026conditional].
+In UAV settings, however, paired RGB and thermal imagery is rarely a perfectly
+controlled image-to-image problem. Slight camera misalignment, different
+optics, target normalization choices, and dataset preprocessing conventions can
+dominate the apparent behavior of a translation model
+[@hwang2015kaist; @kemker2017multispectral; @lee2024cart; @ouyang2025kust4k].
 
 This paper studies whether learned registration can improve aerial RGB-to-
 thermal translation under controlled synthetic misalignment. The motivating
@@ -83,12 +86,15 @@ Our contributions are:
 
 RGB-to-thermal and RGB-TIR translation methods are commonly framed as paired
 image-to-image translation, using regression losses, adversarial losses, or
-hybrid perceptual objectives. Paired regression models such as U-Net-style
-architectures are strong when aligned supervision is available, while unpaired
+hybrid perceptual objectives [@isola2017pix2pix; @zhu2017cyclegan;
+@wang2024coadain; @xia2025thermalgen; @sherpa2026conditional]. Paired
+regression models such as U-Net-style architectures are strong when aligned
+supervision is available [@ronneberger2015unet; @he2016resnet], while unpaired
 translation methods such as CycleGAN are attractive when paired data is scarce
-but often underperform paired objectives on small supervised datasets. Our
-experiments confirm that gap in this setting: CycleGAN and pix2pix-style
-baselines are substantially below pretrained encoder-decoder regressors.
+but often underperform paired objectives on small supervised datasets
+[@zhu2017cyclegan]. Our experiments confirm that gap in this setting: CycleGAN
+and pix2pix-style baselines are substantially below pretrained encoder-decoder
+regressors.
 
 Multimodal aerial datasets introduce additional complications. UAV RGB and
 thermal imagery can differ in field of view, lens distortion, capture timing,
@@ -96,22 +102,31 @@ and target scale. Public datasets such as Kust4K and CART provide useful
 external context, but their targets and preprocessing differ from Ann Arbor.
 Kust4K provides official splits and author-supplied broken-sample lists; CART's
 labeled subset is smaller than the full imagery discussed in its broader
-dataset material. These details matter because a numerical gain measured on one
-target convention is not automatically comparable to a gain measured on another.
+dataset material [@lee2024cart; @ouyang2025kust4k]. These details matter
+because a numerical gain measured on one target convention is not automatically
+comparable to a gain measured on another. This same issue appears across
+visible-infrared benchmarks for detection, segmentation, and low-light vision,
+where dataset capture protocols and target domains differ substantially
+[@hwang2015kaist; @liu2016multispectral; @kemker2017multispectral;
+@shivakumar2019pst900; @jia2021llvip; @zhou2023csrpnet; @zhang2025sgfnet;
+@zhao2025shifnet; @canitez2026frequency].
 
 Cross-modal registration has a long history in remote sensing and multimodal
 vision. Spatial transformer-style modules and affine or flow-based warpers can
 be trained end-to-end, but the gradient signal from a downstream reconstruction
 loss may be weak when the target is low-frequency or only loosely correlated
-with visible edges. Our ablations reflect this: unsupervised affine and dense
-flow variants did not reliably beat the no-registration baseline. The effective
-variant required direct synthetic warp-recovery supervision.
+with visible edges [@jaderberg2015stn; @detone2016homography;
+@dai2017deformable; @balakrishnan2019voxelmorph]. Our ablations reflect this:
+unsupervised affine and dense-flow variants did not reliably beat the
+no-registration baseline. The effective variant required direct synthetic
+warp-recovery supervision.
 
 Uncertainty maps are often used to down-weight ambiguous regions in image
 translation and multimodal prediction. In our setting, however, uncertainty-
 weighted reconstruction reduced performance. We therefore retain uncertainty
 maps only as diagnostic outputs in the primary method. This is an empirical
-design choice, not a claim that uncertainty is unhelpful in general.
+design choice, not a claim that uncertainty is unhelpful in general
+[@gal2016dropout; @kendall2018multi].
 
 ## 3. Datasets and Target Representation
 
@@ -123,14 +138,18 @@ recovered scalar thermal targets. The split used throughout the locked Week 7
 protocol has 336 training, 41 validation, and 42 test examples. Because the
 target is a recovered scalar thermal map with visible high-frequency structure,
 Ann Arbor is the dataset where synthetic misalignment has the clearest
-measurable effect.
+measurable effect. Recent urban thermal work also warns that the relationship
+between remotely sensed thermal proxies and local heat exposure depends on
+scale, land cover, and sensing modality [@liu2023island; @martin2022iris;
+@zhan2025satellite].
 
-Kust4K is a public UAV RGB-TIR dataset. We use the official train/validation/
-test split files and exclude sample stems listed in the dataset's broken RGB
-and TIR lists. After those exclusions, the usable split contains 1970 training,
-283 validation, and 565 test examples. Kust4K is important external context, but
-it does not support a positive within-dataset registration claim in our results:
-the three-seed gain is only `+0.096 +/- 0.067 dB`, consistent with no effect.
+Kust4K is a public UAV RGB-TIR dataset [@ouyang2025kust4k]. We use the
+official train/validation/test split files and exclude sample stems listed in
+the dataset's broken RGB and TIR lists. After those exclusions, the usable split
+contains 1970 training, 283 validation, and 565 test examples. Kust4K is
+important external context, but it does not support a positive within-dataset
+registration claim in our results: the three-seed gain is only
+`+0.096 +/- 0.067 dB`, consistent with no effect.
 
 CART is used through its labeled RGB/thermal paired subset discussed above,
 with 1822 training, 222 validation, and 238 test examples under our split. The
@@ -138,7 +157,7 @@ broader CART material includes additional imagery, but our supervised
 experiments use only this labeled subset. CART shows a larger within-dataset
 registration gain than Kust4K, but the gain is sensitive to the weight on the
 RGB warp-recovery loss. We therefore treat CART as supportive but not
-definitive evidence.
+definitive evidence [@lee2024cart].
 
 Target normalization is a central part of the protocol. Ann Arbor's recovered
 scalar targets and the external datasets' raw grayscale thermal targets have
@@ -156,10 +175,11 @@ perturbation and apply it to the RGB input, producing `x_mis`. The thermal
 target remains fixed. A small RGB-only registration head predicts affine
 parameters `theta`, initialized at identity. The predicted warp produces
 `x_warp = W(x_mis, theta)`, which is passed to a ConvNeXt-tiny U-Net translator
-to predict `y_hat`.
+to predict `y_hat` [@ronneberger2015unet; @liu2022convnext; @jaderberg2015stn].
 
 The training objective combines thermal reconstruction terms and a direct RGB
-warp-recovery term:
+warp-recovery term, with SSIM used as a structural image-quality term
+[@wang2004ssim]:
 
 ```text
 L = L1(y_hat, y)
@@ -211,11 +231,16 @@ uncertainty-decoupled variant.
 ### 5.3 Baselines
 
 Table 2 compares the main baseline families. CycleGAN, pix2pix, and a small
-U-Net L1 baseline underperform pretrained encoder-decoder regressors. A Swin-T
-U-Net is a stronger single-seed baseline than ConvNeXt no-registration, but the
+U-Net L1 baseline underperform pretrained encoder-decoder regressors
+[@zhu2017cyclegan; @isola2017pix2pix; @ronneberger2015unet]. A Swin-T U-Net is
+a stronger single-seed baseline than ConvNeXt no-registration, but the
 three-seed audit weakens the claim that Swin-T dominates the registration
-method. The final ConvNeXt affine uncertainty-decoupled model is the top row in
-the controlled three-seed table, though its advantage over Swin-T is modest.
+method [@liu2021swin; @liu2022convnext]. The final ConvNeXt affine
+uncertainty-decoupled model is the top row in the controlled three-seed table,
+though its advantage over Swin-T is modest. We treat SwinIR and Restormer as
+restoration-context references rather than matched baselines because our run
+uses a Swin-T encoder-decoder proxy, not a pretrained restoration checkpoint
+[@liang2021swinir; @zamir2022restormer; @dosovitskiy2021vit; @he2022mae].
 
 ### 5.4 Main Ablation
 

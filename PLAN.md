@@ -290,12 +290,19 @@ Submit primarily to **WACV 2027 R2 (Aug 28, 2026), Algorithms track** only if We
 ### Week 11 — Paper draft 2 + figures polish
 **Goal:** the paper is "almost done."
 - [ ] Address Prof. Siwo's feedback.
-- [ ] Tighten claims; remove anything we can't defend.
-- [ ] Re-do the worst 2 figures.
-- [ ] Cite recent work end-to-end (RGB-T, registration, uncertainty in translation, aerial). At least 40 citations.
-- [ ] Run a "no overclaiming" pass: every sentence in the abstract must be defensible by a specific experiment.
-- **Result:**
-- **Blocker:**
+- [x] Tighten claims; remove anything we can't defend.
+- [x] Re-do the worst 2 figures.
+- [x] Cite recent work end-to-end (RGB-T, registration, uncertainty in translation, aerial). At least 40 citations.
+- [x] Run a "no overclaiming" pass: every sentence in the abstract must be defensible by a specific experiment.
+- **Result:** Week 11 local polish pass complete. Added
+  `paper_draft/references.bib` with 42 entries and inline citation keys in
+  `paper_draft/main_draft.md`; added `paper_draft/citation_audit.md`; generated
+  polished preview figures for the hero, failure cases, and cross-dataset
+  gallery; added `paper_draft/review_packet.md`; extended the no-overclaiming
+  checklist with an abstract sentence audit. See `WEEK11_POLISH_RESULT.md`.
+- **Blocker:** Prof. Siwo feedback is still external/pending. Final figure
+  layout, LaTeX conversion, DOI cleanup, and publication-status checks for
+  recent preprints remain for the final paper pass.
 
 ### Week 12 — WACV submission week
 **Goal:** submit WACV R2 by Aug 28.
