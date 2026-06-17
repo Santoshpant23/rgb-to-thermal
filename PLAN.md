@@ -211,8 +211,9 @@ Submit primarily to **WACV 2027 R2 (Aug 28, 2026), Algorithms track** only if We
 - **Result:** Week 7 ablations changed the primary method. ConvNeXt
   supervised-affine with uncertainty weighting is repeatable but modest:
   `+0.260 +/- 0.021 dB` over no-registration. Decoupling uncertainty from
-  reconstruction weighting and setting its regularizers to zero gives the
-  stronger uncertainty-decoupled affine method:
+  reconstruction weighting and setting the uncertainty regularizer weights to
+  zero in the locked primary rows gives the stronger uncertainty-decoupled
+  affine method:
   `16.444 +/- 0.127 dB`, or `+0.571 +/- 0.157 dB` over no-registration. It also
   beats Swin-T no-registration by `+0.215 +/- 0.113 dB` in the paired 3-seed
   table. Swin-T affine does not stack reliably (`-0.064 +/- 0.214 dB`). Loss

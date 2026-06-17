@@ -8,11 +8,13 @@
 | Kust4K | 1970 / 283 / 565 | Raw grayscale TIR | robust for transfer; raw in legacy qualitative row | 0.029 | Official splits minus author-flagged broken stems |
 | CART | 1822 / 222 / 238 | Raw grayscale thermal | robust for transfer; raw in legacy qualitative row | 0.026 | Full labeled_rgbt_pairs archive |
 
+Note: Kust4K and CART test counts were spot-checked with `UnifiedR2TDataset.from_roots(..., split="test")`.
+
 ## Table 2. Baseline Results
 
 | Method | Family | Seed(s) | PSNR | SSIM | Pearson r | Note |
 | --- | --- | --- | --- | --- | --- | --- |
-| CycleGAN | unpaired | 42 | 8.598 | 0.269 | 0.180 | unpaired CycleGAN, no paired L1 |
+| CycleGAN | unpaired | 42 | 8.598 | 0.269 | 0.180 | unpaired CycleGAN, no paired L1; single seed, unstable on this small supervised setting |
 | pix2pix | paired_gan | 42 | 11.835 | - | - | vanilla paired pix2pix |
 | Small U-Net L1 | paired_l1 | 42 | 12.714 | - | - | pix2pix generator with L1 only |
 | ConvNeXt+U-Net | paired_regression | 42 | 15.637 | 0.536 | 0.812 | existing ConvNeXt+U-Net no-registration baseline |
@@ -21,13 +23,15 @@
 
 ## Table 3. Main Registration Ablation
 
-| Variant | Seeds | PSNR mean +/- std | Paired delta vs ConvNeXt no-reg |
-| --- | --- | --- | --- |
-| ConvNeXt no-registration | 3 | 15.872 +/- 0.217 | - |
-| ConvNeXt affine + uncertainty weighting | 3 | 16.133 +/- 0.199 | +0.260 +/- 0.021 |
-| ConvNeXt affine, uncertainty-decoupled | 3 | 16.444 +/- 0.127 | +0.571 +/- 0.157 |
-| Swin-T no-registration | 3 | 16.228 +/- 0.106 | +0.356 +/- 0.115 |
-| Swin-T affine | 3 | 16.164 +/- 0.297 | +0.292 +/- 0.200 |
+| Variant | Seeds | PSNR mean +/- std | Delta vs ConvNeXt no-reg | Same-family registration delta |
+| --- | --- | --- | --- | --- |
+| ConvNeXt no-registration | 3 | 15.872 +/- 0.217 | - | - |
+| ConvNeXt affine + uncertainty weighting | 3 | 16.133 +/- 0.199 | +0.260 +/- 0.021 | +0.260 +/- 0.021 |
+| ConvNeXt affine, uncertainty-decoupled | 3 | 16.444 +/- 0.127 | +0.571 +/- 0.157 | +0.571 +/- 0.157 |
+| Swin-T no-registration | 3 | 16.228 +/- 0.106 | +0.356 +/- 0.115 | - |
+| Swin-T affine | 3 | 16.164 +/- 0.297 | +0.292 +/- 0.200 | -0.064 +/- 0.214 |
+
+Note: Swin-T deltas versus ConvNeXt include the encoder/decoder-family change. The direct Swin-T affine minus Swin-T no-registration delta is shown in the same-family column.
 
 ## Table 4. External and Transfer Results
 

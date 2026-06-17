@@ -359,6 +359,7 @@ def main() -> None:
         ],
         [f"{hero['name']}"],
         args.tile_width,
+        footnote="Example +0.93 dB; 3-seed mean +0.571 +/- 0.157 dB.",
     )
 
     scored_aa_delta = score_paired_delta(aa_ours, aa_base, aa_ds, device, args.res, args.max_score_items)

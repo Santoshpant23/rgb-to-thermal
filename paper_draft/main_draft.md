@@ -132,11 +132,13 @@ and TIR lists. After those exclusions, the usable split contains 1970 training,
 it does not support a positive within-dataset registration claim in our results:
 the three-seed gain is only `+0.096 +/- 0.067 dB`, consistent with no effect.
 
-CART is used through its labeled RGB/thermal paired subset, with 1822 training,
-222 validation, and 238 test examples under our split. CART shows a larger
-within-dataset registration gain than Kust4K, but the gain is sensitive to the
-weight on the RGB warp-recovery loss. We therefore treat CART as supportive but
-not definitive evidence.
+CART is used through its labeled RGB/thermal paired subset discussed above,
+with 1822 training, 222 validation, and 238 test examples under our split. The
+broader CART material includes additional imagery, but our supervised
+experiments use only this labeled subset. CART shows a larger within-dataset
+registration gain than Kust4K, but the gain is sensitive to the weight on the
+RGB warp-recovery loss. We therefore treat CART as supportive but not
+definitive evidence.
 
 Target normalization is a central part of the protocol. Ann Arbor's recovered
 scalar targets and the external datasets' raw grayscale thermal targets have
@@ -165,13 +167,18 @@ L = L1(y_hat, y)
   + lambda_edge * L_edge(y_hat, y)
   + lambda_affine * ||theta - I||
   + lambda_warp * L1(x_warp, x_aligned)
+  + lambda_unc * mean(u)
+  + lambda_unc_tv * TV(u)
 ```
 
 The final method uses `lambda_warp=0.5` and decouples uncertainty from
 reconstruction. Earlier variants used an uncertainty map to weight the L1 loss
-and regularized the uncertainty mean and total variation. That design was
-repeatable but weaker: it improved over no-registration by `+0.260 +/- 0.021
-dB`, while the uncertainty-decoupled variant improves by `+0.571 +/- 0.157 dB`.
+and regularized the uncertainty mean and total variation. In the locked primary
+rows, both uncertainty regularizer weights are set to zero (`lambda_unc=0`,
+`lambda_unc_tv=0`); the branch still produces a diagnostic map but it does not
+affect the loss. The uncertainty-weighted design was repeatable but weaker: it
+improved over no-registration by `+0.260 +/- 0.021 dB`, while the
+uncertainty-decoupled variant improves by `+0.571 +/- 0.157 dB`.
 
 The synthetic perturbation uses translation, rotation, and scale. In the locked
 amplified protocol, sigma `1.0` corresponds to a maximum translation fraction of
@@ -212,13 +219,16 @@ the controlled three-seed table, though its advantage over Swin-T is modest.
 
 ### 5.4 Main Ablation
 
-Table 3 is the load-bearing ablation. Holding the ConvNeXt family fixed, the
-uncertainty-weighted affine model improves over no-registration by `+0.260 +/-
-0.021 dB`. Decoupling uncertainty from reconstruction raises the gain to
-`+0.571 +/- 0.157 dB`. Swin-T affine does not reliably stack with registration:
-its paired delta over Swin-T no-registration is near-null and high-variance in
-the Week 7 audit. The paper should therefore frame the method as a ConvNeXt
-registration ablation, not as a universal module that improves every backbone.
+Table 3 reports the registration ablation across both ConvNeXt and Swin-T
+families. Within the ConvNeXt family, the uncertainty-weighted affine model
+improves over no-registration by `+0.260 +/- 0.021 dB`. Decoupling uncertainty
+from reconstruction raises the gain to `+0.571 +/- 0.157 dB`. The Swin-T rows
+include a backbone/decoder-family change when compared against ConvNeXt
+no-registration, so the same-family delta is the relevant registration test:
+Swin-T affine does not reliably stack with registration (`-0.064 +/- 0.214 dB`
+versus Swin-T no-registration). The paper should therefore frame the method as
+a ConvNeXt registration ablation, not as a universal module that improves every
+backbone.
 
 ### 5.5 External and Transfer Results
 
@@ -264,9 +274,10 @@ The uncertainty result is also important. Our original uncertainty-weighted
 design sounded plausible: down-weight ambiguous regions and let the model focus
 on reliable pixels. In practice, that weighting reduced PSNR. The best variant
 keeps the uncertainty branch as a diagnostic output but removes it from the
-reconstruction weighting path and sets the uncertainty regularizers to zero.
-This finding should be presented as an ablation-driven design choice rather
-than a theoretical claim about uncertainty.
+reconstruction weighting path. In the locked primary rows, the uncertainty
+regularizer weights are also zero, so the branch is computed for diagnostics but
+does not shape the objective. This finding should be presented as an
+ablation-driven design choice rather than a theoretical claim about uncertainty.
 
 The external results constrain the paper's scope. Kust4K does not support a
 positive within-dataset registration claim across seeds. CART has stronger
@@ -306,3 +317,14 @@ synthetic misalignment protocol, while external datasets expose target and
 loss-balance limitations. This makes the method a defensible robustness module
 and an empirical study of alignment sensitivity, not a universal RGB-to-thermal
 solution.
+
+## Appendix A. Additional Qualitative Examples
+
+Appendix Figure A will include the PSNR-quantile Ann Arbor candidate grid from
+`figures/week8/ann_arbor_candidate_grid_seed42.png`.
+
+## Appendix B. Cross-Dataset Qualitative Context
+
+Appendix Figure B will include `figures/week8/cross_dataset_gallery_seed42.png`.
+This appendix panel is qualitative context only. The Kust4K row is explicitly
+marked as non-significant across seeds.

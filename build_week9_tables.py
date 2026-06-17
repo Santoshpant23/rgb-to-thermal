@@ -44,7 +44,11 @@ def dataset_table() -> str:
         ["Kust4K", "1970 / 283 / 565", "Raw grayscale TIR", "robust for transfer; raw in legacy qualitative row", fmt(edge.get("kust4k", 0.0), 3), "Official splits minus author-flagged broken stems"],
         ["CART", "1822 / 222 / 238", "Raw grayscale thermal", "robust for transfer; raw in legacy qualitative row", fmt(edge.get("caltech_cart", 0.0), 3), "Full labeled_rgbt_pairs archive"],
     ]
-    return table(["Dataset", "Train / Val / Test", "Target", "Normalization", "Edge mean", "Paper use"], rows)
+    return (
+        table(["Dataset", "Train / Val / Test", "Target", "Normalization", "Edge mean", "Paper use"], rows)
+        + "\n\n"
+        + "Note: Kust4K and CART test counts were spot-checked with `UnifiedR2TDataset.from_roots(..., split=\"test\")`."
+    )
 
 
 def baseline_table() -> str:
@@ -58,7 +62,10 @@ def baseline_table() -> str:
         r = by_label[label]
         ssim = fmt(fnum(r, "final_ssim"), 3) if r.get("final_ssim") else "-"
         corr = fmt(fnum(r, "final_corr"), 3) if r.get("final_corr") else "-"
-        rows.append([label, r["family"], r["seed"], fmt(fnum(r, "final_psnr"), 3), ssim, corr, r["note"]])
+        note = r["note"]
+        if label == "CycleGAN":
+            note += "; single seed, unstable on this small supervised setting"
+        rows.append([label, r["family"], r["seed"], fmt(fnum(r, "final_psnr"), 3), ssim, corr, note])
     rows.append([
         "Ours: ConvNeXt affine, uncertainty-decoupled",
         "paired_regression + affine",
@@ -81,18 +88,39 @@ def main_ablation_table() -> str:
         "swin_affine": "Swin-T affine",
     }
     psnrs = {k: [fnum(r, "final_psnr") for r in rows if r["family"] == k] for k in families}
-    baseline = psnrs["convnext_no_reg"]
+    convnext_baseline = psnrs["convnext_no_reg"]
+    family_baseline = {
+        "convnext_no_reg": psnrs["convnext_no_reg"],
+        "convnext_affine_unc": psnrs["convnext_no_reg"],
+        "convnext_affine_unc_decoupled": psnrs["convnext_no_reg"],
+        "swin_no_reg": psnrs["swin_no_reg"],
+        "swin_affine": psnrs["swin_no_reg"],
+    }
     out_rows = []
     for key, label in families.items():
         m, s = mean_std(psnrs[key])
         if key == "convnext_no_reg":
-            delta = "-"
+            delta_convnext = "-"
         else:
-            paired = [a - b for a, b in zip(psnrs[key], baseline)]
+            paired = [a - b for a, b in zip(psnrs[key], convnext_baseline)]
             dm, ds = mean_std(paired)
-            delta = f"{dm:+.3f} +/- {ds:.3f}"
-        out_rows.append([label, str(len(psnrs[key])), f"{m:.3f} +/- {s:.3f}", delta])
-    return table(["Variant", "Seeds", "PSNR mean +/- std", "Paired delta vs ConvNeXt no-reg"], out_rows)
+            delta_convnext = f"{dm:+.3f} +/- {ds:.3f}"
+        if key in ("convnext_no_reg", "swin_no_reg"):
+            delta_family = "-"
+        else:
+            paired_family = [a - b for a, b in zip(psnrs[key], family_baseline[key])]
+            fm, fs = mean_std(paired_family)
+            delta_family = f"{fm:+.3f} +/- {fs:.3f}"
+        out_rows.append([label, str(len(psnrs[key])), f"{m:.3f} +/- {s:.3f}", delta_convnext, delta_family])
+    return (
+        table(
+            ["Variant", "Seeds", "PSNR mean +/- std", "Delta vs ConvNeXt no-reg", "Same-family registration delta"],
+            out_rows,
+        )
+        + "\n\n"
+        + "Note: Swin-T deltas versus ConvNeXt include the encoder/decoder-family change. "
+        + "The direct Swin-T affine minus Swin-T no-registration delta is shown in the same-family column."
+    )
 
 
 def external_table() -> str:

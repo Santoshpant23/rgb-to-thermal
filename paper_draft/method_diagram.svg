@@ -79,4 +79,5 @@
 
   <text x="246" y="114" class="tiny">Train-time only</text>
   <text x="920" y="86" class="tiny">Primary model does not use uncertainty to weight reconstruction</text>
+  <text x="920" y="108" class="tiny">Inference: affine head warps RGB; uncertainty is computed but diagnostic only</text>
 </svg>
