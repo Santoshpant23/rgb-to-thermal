@@ -28,6 +28,43 @@ data_cache/
 # Private
 email_to_siwo.md
 
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs and intermediate
+*.log
+*.aux
+*.toc
+*.bbl
+*.blg
+*.out
+*.synctex.gz
+nohup.out
+
+# Build / packaging
+build/
+dist/
+*.egg-info/
+
+# Knox training run dirs (large; not synced locally)
+week*_runs/
+week*_smoke_runs/
+
 # OS
 .DS_Store
 Thumbs.db
+
+# Claude session metadata
+.claude/
+
+# LaTeX build artifacts (Week 12 conversion)
+paper_draft/*.aux
+paper_draft/*.bbl
+paper_draft/*.blg
+paper_draft/*.log
+paper_draft/*.out
+paper_draft/*.synctex.gz
